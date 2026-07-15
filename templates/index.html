@@ -10,7 +10,7 @@
     <div class="max-w-4xl mx-auto px-4 py-12">
         <!-- Header -->
         <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-indigo-600 mb-2">SmartGrad Dashboard</h1>
+            <h1 class="text-4xl font-bold text-indigo-600 mb-2">SmartGrad</h1>
             <p class="text-gray-500">ตรวจสอบสถานะการเรียน ผลการลงทะเบียน และวิชาคงเหลือเพื่อสำเร็จการศึกษา</p>
         </header>
 
@@ -26,6 +26,14 @@
                     ประมวลผลและแสดงแดชบอร์ด
                 </button>
             </form>
+            <div class="mt-4 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 leading-relaxed">
+                <strong>*หมายเหตุ:</strong> ระบบนี้เป็นเพียงเครื่องมือช่วยตรวจสอบความคืบหน้าเบื้องต้นเท่านั้น โปรดใช้ไฟล์ทรานสคริปต์ที่ออกจากสถาบันโดยไม่มีการดัดแปลงใด ๆ การแก้ไขโครงสร้างหรือข้อความในไฟล์อาจทำให้การจับคู่รายวิชาและการคำนวณความคืบหน้าคลาดเคลื่อนจากความเป็นจริง
+            </div>
+
+            {% if error %}
+            <div class="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">{{ error }}</div>
+            {% endif %}
+        </div>
             {% if error %}
             <div class="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">{{ error }}</div>
             {% endif %}

@@ -1,0 +1,277 @@
+{
+  "curriculum": [
+    {
+      "year": 1,
+      "semester": 1,
+      "courses": [
+        {
+          "course_code": "05506232",
+          "course_name_th": "คณิตศาสตร์สำหรับวิทยาการคอมพิวเตอร์",
+          "course_name_en": "MATHEMATICS FOR COMPUTER SCIENCE",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506231",
+          "course_name_th": "สถิติและความน่าจะเป็น",
+          "course_name_en": "STATISTICS AND PROBABILITY",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506003",
+          "course_name_th": "การเขียนโปรแกรมขั้นพื้นฐาน",
+          "course_name_en": "PROGRAMMING FUNDAMENTALS",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506005",
+          "course_name_th": "วิทยาการคอมพิวเตอร์",
+          "course_name_en": "COMPUTER SCIENCE",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "90644007",
+          "course_name_th": "ภาษาอังกฤษพื้นฐาน 1",
+          "course_name_en": "FOUNDATION ENGLISH 1",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "90641002",
+          "course_name_th": "ความฉลาดทางดิจิทัล",
+          "course_name_en": "DIGITAL INTELLIGENCE QUOTIENT",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "90641001",
+          "course_name_th": "โรงเรียนสร้างเสน่ห์",
+          "course_name_en": "CHARM SCHOOL",
+          "credit": "2(1-2-3)"
+        },
+        {
+          "course_code": "90641003",
+          "course_name_th": "กีฬาและนันทนาการ",
+          "course_name_en": "SPORTS AND RECREATIONAL ACTIVITIES",
+          "credit": "1(0-3-2)"
+        }
+      ]
+    },
+    {
+      "year": 1,
+      "semester": 2,
+      "courses": [
+        {
+          "course_code": "05506233",
+          "course_name_th": "แคลคูลัสสำหรับวิทยาการคอมพิวเตอร์",
+          "course_name_en": "CALCULUS FOR COMPUTER SCIENCE",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506001",
+          "course_name_th": "คณิตศาสตร์ดิสครีต",
+          "course_name_en": "DISCRETE MATHEMATICS",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506004",
+          "course_name_th": "การเขียนโปรแกรมเชิงออบเจกต์",
+          "course_name_en": "OBJECT-ORIENTED PROGRAMMING",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506008",
+          "course_name_th": "โครงสร้างและสถาปัตยกรรมคอมพิวเตอร์",
+          "course_name_en": "COMPUTER ORGANIZATION AND ARCHITECT",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506011",
+          "course_name_th": "ปฏิสัมพันธ์ระหว่างมนุษย์และคอมพิวเตอร์",
+          "course_name_en": "HUMAN-COMPUTER INTERACTION",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "90644008",
+          "course_name_th": "ภาษาอังกฤษพื้นฐาน 2",
+          "course_name_en": "FOUNDATION ENGLISH 2",
+          "credit": "3(3-0-6)"
+        }
+      ]
+    },
+    {
+      "year": 2,
+      "semester": 1,
+      "courses": [
+        {
+          "course_code": "05506230",
+          "course_name_th": "พีชคณิตเชิงเส้นสำหรับวิทยาการคอมพิวเตอร์",
+          "course_name_en": "LINEAR ALGEBRA FOR COMPUTER SCIENCE",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506006",
+          "course_name_th": "โครงสร้างข้อมูลและขั้นตอนวิธี",
+          "course_name_en": "DATA STRUCTURES AND ALGORITHMS",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506007",
+          "course_name_th": "ระบบปฏิบัติการ",
+          "course_name_en": "OPERATING SYSTEMS",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506012",
+          "course_name_th": "ระบบฐานข้อมูล",
+          "course_name_en": "DATABASE SYSTEMS",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506234",
+          "course_name_th": "การวิเคราะห์และจัดการกระบวนการทางธุรกิจ",
+          "course_name_en": "BUSINESS ANALYSIS AND PROCESS MANAGEMENT",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506238",
+          "course_name_th": "สัมมนาด้านเทคโนโลยีแพลตฟอร์มสมัยใหม่",
+          "course_name_en": "SEMINAR IN MODERN PLATFORM TECHNOLOGIES",
+          "credit": "1(0-3-2)"
+        }
+      ]
+    },
+    {
+      "year": 2,
+      "semester": 2,
+      "courses": [
+        {
+          "course_code": "05506002",
+          "course_name_th": "กรรมวิธีคำนวณเชิงตัวเลข",
+          "course_name_en": "METHODS OF NUMERICAL COMPUTATION",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506236",
+          "course_name_th": "การวิเคราะห์และการออกแบบขั้นตอนวิธี",
+          "course_name_en": "ANALYSIS AND DESIGN OF ALGORITHMS",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506113",
+          "course_name_th": "การวิเคราะห์และออกแบบซอฟต์แวร์",
+          "course_name_en": "SOFTWARE ANALYSIS AND DESIGN",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506235",
+          "course_name_th": "การจัดการนวัตกรรมดิจิทัลและเทคโนโลยีในยุคการเปลี่ยนแปลงอย่างรวดเร็ว",
+          "course_name_en": "DIGITAL INNOVATION AND TECHNOLOGY MANAGEMENT IN DISRUPTIVE ERA",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506014",
+          "course_name_th": "คอมพิวเตอร์กราฟิกส์",
+          "course_name_en": "COMPUTER GRAPHICS",
+          "credit": "3(3-0-6)"
+        }
+      ]
+    },
+    {
+      "year": 3,
+      "semester": 1,
+      "courses": [
+        {
+          "course_code": "05506210",
+          "course_name_th": "ปัญญาประดิษฐ์",
+          "course_name_en": "ARTIFICIAL INTELLIGENCE",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506017",
+          "course_name_th": "วิศวกรรมซอฟต์แวร์",
+          "course_name_en": "SOFTWARE ENGINEERING",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506016",
+          "course_name_th": "การสื่อสารข้อมูลและระบบเครือข่าย",
+          "course_name_en": "DATA COMMUNICATION AND NETWORK SYSTEMS",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506237",
+          "course_name_th": "แนวคิดและตัวแบบของภาษาโปรแกรม",
+          "course_name_en": "PROGRAMMING LANGUAGE CONCEPTS AND PARADIGMS",
+          "credit": "3(2-2-5)"
+        },
+        {
+          "course_code": "05506239",
+          "course_name_th": "โครงงานเชิงปฏิบัติ",
+          "course_name_en": "PRACTICAL PROJECT",
+          "credit": "1(0-3-2)"
+        }
+      ]
+    },
+    {
+      "year": 3,
+      "semester": 2,
+      "courses": [
+        {
+          "course_code": "05506015",
+          "course_name_th": "จรรยาบรรณทางวิชาชีพและเชิงสังคม",
+          "course_name_en": "COMPUTER ETHICS: SOCIAL AND PROFESSIONAL ISSUES",
+          "credit": "3(3-0-6)"
+        },
+        {
+          "course_code": "05506018",
+          "course_name_th": "สัมมนา",
+          "course_name_en": "SEMINAR",
+          "credit": "1(0-3-2)"
+        }
+      ]
+    },
+    {
+      "year": 4,
+      "semester": 1,
+      "plan_type": "แผนปกติ (Normal Plan)",
+      "courses": [
+        {
+          "course_code": "05506098",
+          "course_name_th": "ปัญหาพิเศษ 1",
+          "course_name_en": "SPECIAL PROBLEM 1",
+          "credit": "3(0-6-3)"
+        }
+      ]
+    },
+    {
+      "year": 4,
+      "semester": 1,
+      "plan_type": "แผนสหกิจศึกษา/ฝึกงานต่างประเทศ (Co-op / Overseas Training Plan)",
+      "courses": [
+        {
+          "course_code": "05506117",
+          "course_name_th": "สหกิจศึกษา",
+          "course_name_en": "COOPERATIVE EDUCATION",
+          "credit": "6(0-45-0)"
+        },
+        {
+          "course_code": "05506118",
+          "course_name_th": "การปฏิบัติการฝึกงานต่างประเทศ",
+          "course_name_en": "OVERSEAS TRAINING",
+          "credit": "6(0-45-0)"
+        }
+      ]
+    },
+    {
+      "year": 4,
+      "semester": 2,
+      "plan_type": "แผนปกติ (Normal Plan)",
+      "courses": [
+        {
+          "course_code": "05506099",
+          "course_name_th": "ปัญหาพิเศษ 2",
+          "course_name_en": "SPECIAL PROBLEM 2",
+          "credit": "3(0-6-3)"
+        }
+      ]
+    }
+  ]
+}

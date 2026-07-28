@@ -1,24 +1,11 @@
-version: '3.8'
 services:
-  db:
-    image: mysql:latest
-    container_name: db
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: demo_db
+  web:
+    build: .
     ports:
-     - "3306:3306"
-  app:
-    build: ./smartgrad
-    container_name: smartgrad_app
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    environment:
-      DB_HOST: db          # ชื่อ service ของ mysql ไม่ใช่ localhost
-      DB_USER: root
-      DB_PASSWORD: root
-      DB_NAME: demo_db
- 
-volumes:
-  db_data:
+      - "8000:8080"
+    volumes:
+      # Live-reload source from the host; the anonymous volume keeps the
+      # container's Linux-built .venv from being shadowed by the host one.
+      - .:/app
+      - /app/.venv
+    command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload

@@ -74,7 +74,11 @@
           "course_code": "05506004",
           "course_name_th": "การเขียนโปรแกรมเชิงออบเจกต์",
           "course_name_en": "OBJECT-ORIENTED PROGRAMMING",
-          "credit": "3(2-2-5)"
+          "credit": "3(2-2-5)",
+          "prerequisites": [
+            "05506003"
+          ],
+          "prereq_source": "official"
         },
         {
           "course_code": "05506008",
@@ -92,7 +96,11 @@
           "course_code": "90644008",
           "course_name_th": "ภาษาอังกฤษพื้นฐาน 2",
           "course_name_en": "FOUNDATION ENGLISH 2",
-          "credit": "3(3-0-6)"
+          "credit": "3(3-0-6)",
+          "prerequisites": [
+            "90644007"
+          ],
+          "prereq_source": "draft"
         }
       ]
     },
@@ -110,13 +118,21 @@
           "course_code": "05506006",
           "course_name_th": "โครงสร้างข้อมูลและขั้นตอนวิธี",
           "course_name_en": "DATA STRUCTURES AND ALGORITHMS",
-          "credit": "3(2-2-5)"
+          "credit": "3(2-2-5)",
+          "prerequisites": [
+            "05506004"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506007",
           "course_name_th": "ระบบปฏิบัติการ",
           "course_name_en": "OPERATING SYSTEMS",
-          "credit": "3(2-2-5)"
+          "credit": "3(2-2-5)",
+          "prerequisites": [
+            "05506008"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506012",
@@ -146,19 +162,31 @@
           "course_code": "05506002",
           "course_name_th": "กรรมวิธีคำนวณเชิงตัวเลข",
           "course_name_en": "METHODS OF NUMERICAL COMPUTATION",
-          "credit": "3(2-2-5)"
+          "credit": "3(2-2-5)",
+          "prerequisites": [
+            "05506233"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506236",
           "course_name_th": "การวิเคราะห์และการออกแบบขั้นตอนวิธี",
           "course_name_en": "ANALYSIS AND DESIGN OF ALGORITHMS",
-          "credit": "3(2-2-5)"
+          "credit": "3(2-2-5)",
+          "prerequisites": [
+            "05506006"
+          ],
+          "prereq_source": "official"
         },
         {
           "course_code": "05506113",
           "course_name_th": "การวิเคราะห์และออกแบบซอฟต์แวร์",
           "course_name_en": "SOFTWARE ANALYSIS AND DESIGN",
-          "credit": "3(3-0-6)"
+          "credit": "3(3-0-6)",
+          "prerequisites": [
+            "05506004"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506235",
@@ -170,7 +198,11 @@
           "course_code": "05506014",
           "course_name_th": "คอมพิวเตอร์กราฟิกส์",
           "course_name_en": "COMPUTER GRAPHICS",
-          "credit": "3(3-0-6)"
+          "credit": "3(3-0-6)",
+          "prerequisites": [
+            "05506230"
+          ],
+          "prereq_source": "draft"
         }
       ]
     },
@@ -182,25 +214,41 @@
           "course_code": "05506210",
           "course_name_th": "ปัญญาประดิษฐ์",
           "course_name_en": "ARTIFICIAL INTELLIGENCE",
-          "credit": "3(3-0-6)"
+          "credit": "3(3-0-6)",
+          "prerequisites": [
+            "05506006"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506017",
           "course_name_th": "วิศวกรรมซอฟต์แวร์",
           "course_name_en": "SOFTWARE ENGINEERING",
-          "credit": "3(3-0-6)"
+          "credit": "3(3-0-6)",
+          "prerequisites": [
+            "05506113"
+          ],
+          "prereq_source": "official"
         },
         {
           "course_code": "05506016",
           "course_name_th": "การสื่อสารข้อมูลและระบบเครือข่าย",
           "course_name_en": "DATA COMMUNICATION AND NETWORK SYSTEMS",
-          "credit": "3(3-0-6)"
+          "credit": "3(3-0-6)",
+          "prerequisites": [
+            "05506008"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506237",
           "course_name_th": "แนวคิดและตัวแบบของภาษาโปรแกรม",
           "course_name_en": "PROGRAMMING LANGUAGE CONCEPTS AND PARADIGMS",
-          "credit": "3(2-2-5)"
+          "credit": "3(2-2-5)",
+          "prerequisites": [
+            "05506004"
+          ],
+          "prereq_source": "draft"
         },
         {
           "course_code": "05506239",
@@ -237,7 +285,11 @@
           "course_code": "05506098",
           "course_name_th": "ปัญหาพิเศษ 1",
           "course_name_en": "SPECIAL PROBLEM 1",
-          "credit": "3(0-6-3)"
+          "credit": "3(0-6-3)",
+          "prerequisites": [
+            "05506017"
+          ],
+          "prereq_source": "draft"
         }
       ]
     },
@@ -269,7 +321,11 @@
           "course_code": "05506099",
           "course_name_th": "ปัญหาพิเศษ 2",
           "course_name_en": "SPECIAL PROBLEM 2",
-          "credit": "3(0-6-3)"
+          "credit": "3(0-6-3)",
+          "prerequisites": [
+            "05506098"
+          ],
+          "prereq_source": "draft"
         }
       ]
     }

@@ -19,6 +19,7 @@ def _flat_curriculum(curriculum_data: dict) -> list[dict]:
                 "name_th": course["course_name_th"],
                 "credit": int(credit_match.group(1)) if credit_match else 0,
                 "term_index": term_index,
+                "prereqs": course.get("prerequisites", []),
             })
         term_index += 1
     return flat
@@ -26,6 +27,7 @@ def _flat_curriculum(curriculum_data: dict) -> list[dict]:
 
 def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> dict:
     curriculum = _flat_curriculum(curriculum_data)
+    name_by_code = {c["code"]: c["name_th"] for c in curriculum}
 
     passed_codes = {
         c["code"]
@@ -41,13 +43,12 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
 
     remaining_list = []
     for course in remaining:
-        earlier_incomplete = [
-            c
-            for c in curriculum
-            if c["term_index"] < course["term_index"] and c["code"] not in passed_codes
-        ]
-        if earlier_incomplete:
-            prereq_status = f"ติดวิชาก่อนหน้า {len(earlier_incomplete)} วิชา"
+        missing = [p for p in course["prereqs"] if p not in passed_codes]
+        if missing:
+            blockers = ", ".join(
+                f"{name_by_code[p]} ({p})" if p in name_by_code else p for p in missing
+            )
+            prereq_status = f"ติดวิชาบังคับก่อน: {blockers}"
         else:
             prereq_status = "พร้อมลงเรียนได้"
 

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database import get_db
-from models import Advisor, AdvisorNote, Student, Transcript, TranscriptCourse
+from models import Advisor, Student, Transcript, TranscriptCourse
 
 router = APIRouter(prefix="/advisors", tags=["Advisors"])
 
@@ -24,30 +24,16 @@ class AdvisorCreate(BaseModel):
     advisor_id: str
     name: str
     email: str | None = None
+    cohort_year: int | None = None
 
 
 class AdvisorOut(BaseModel):
     advisor_id: str
     name: str
     email: str | None
+    cohort_year: int | None
 
     model_config = {"from_attributes": True}
-
-
-class NoteCreate(BaseModel):
-    student_id: str
-    note: str
-
-
-class NoteOut(BaseModel):
-    id: int
-    advisor_id: str
-    student_id: str
-    note: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -225,43 +211,7 @@ async def ready_to_graduate(
     }
 
 
-@router.post("/{advisor_id}/notes", response_model=NoteOut, status_code=201, summary="บันทึกคำแนะนำให้นักศึกษา")
-async def create_note(
-    advisor_id: str,
-    body: NoteCreate,
-    db: AsyncSession = Depends(get_db),
-):
-    """บันทึกและส่งคำแนะนำด้านการวางแผนการเรียนให้นักศึกษา"""
-    await _get_advisor_or_404(advisor_id, db)
 
-    # verify student exists under this advisor
-    s_result = await db.execute(
-        select(Student).where(Student.student_id == body.student_id, Student.advisor_id == advisor_id)
-    )
-    if not s_result.scalars().first():
-        raise HTTPException(status_code=404, detail="ไม่พบนักศึกษาในความดูแล")
-
-    note = AdvisorNote(advisor_id=advisor_id, student_id=body.student_id, note=body.note)
-    db.add(note)
-    await db.commit()
-    await db.refresh(note)
-    return note
-
-
-@router.get("/{advisor_id}/notes/{student_id}", response_model=list[NoteOut], summary="ดูคำแนะนำที่ส่งให้นักศึกษา")
-async def get_notes(
-    advisor_id: str,
-    student_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """ดูประวัติคำแนะนำทั้งหมดที่อาจารย์ส่งให้นักศึกษาคนนั้น"""
-    await _get_advisor_or_404(advisor_id, db)
-    result = await db.execute(
-        select(AdvisorNote)
-        .where(AdvisorNote.advisor_id == advisor_id, AdvisorNote.student_id == student_id)
-        .order_by(AdvisorNote.created_at.desc())
-    )
-    return result.scalars().all()
 
 
 @router.get("/{advisor_id}/summary", summary="รายงานภาพรวมนักศึกษาในความดูแล")

@@ -12,11 +12,24 @@ from database import Base
 # Curriculum
 # ---------------------------------------------------------------------------
 
+class Curriculum(Base):
+    """หลักสูตร (แยกตามปี)"""
+    __tablename__ = "curriculums"
+
+    curriculum_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    courses: Mapped[list["Course"]] = relationship(back_populates="curriculum")
+    students: Mapped[list["Student"]] = relationship(back_populates="curriculum")
+
+
 class Course(Base):
     """รายวิชาในหลักสูตร – SQL เป็น Source of Truth"""
     __tablename__ = "courses"
 
     course_code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    curriculum_id: Mapped[str | None] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=True)
     course_name_th: Mapped[str] = mapped_column(String(255), nullable=False)
     course_name_en: Mapped[str] = mapped_column(String(255), nullable=False)
     credit_str: Mapped[str] = mapped_column(String(20), nullable=False)   # e.g. "3(2-2-5)"
@@ -25,6 +38,9 @@ class Course(Base):
     semester: Mapped[int] = mapped_column(Integer, nullable=False)
     plan_type: Mapped[str | None] = mapped_column(String(100), nullable=True)  # None = normal
     prereq_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # relationships
+    curriculum: Mapped["Curriculum | None"] = relationship(back_populates="courses")
 
     # relationships
     prerequisites: Mapped[list["Prerequisite"]] = relationship(
@@ -55,9 +71,9 @@ class Advisor(Base):
     advisor_id: Mapped[str] = mapped_column(String(20), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cohort_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     students: Mapped[list["Student"]] = relationship(back_populates="advisor")
-    notes: Mapped[list["AdvisorNote"]] = relationship(back_populates="advisor")
 
 
 class Student(Base):
@@ -66,11 +82,14 @@ class Student(Base):
 
     student_id: Mapped[str] = mapped_column(String(20), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    admission_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     advisor_id: Mapped[str | None] = mapped_column(ForeignKey("advisors.advisor_id"), nullable=True)
+    curriculum_id: Mapped[str | None] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=True)
 
     advisor: Mapped["Advisor | None"] = relationship(back_populates="students")
+    curriculum: Mapped["Curriculum | None"] = relationship(back_populates="students")
     transcripts: Mapped[list["Transcript"]] = relationship(back_populates="student", order_by="Transcript.uploaded_at.desc()")
-    notes_received: Mapped[list["AdvisorNote"]] = relationship(back_populates="student")
 
 
 # ---------------------------------------------------------------------------
@@ -107,19 +126,4 @@ class TranscriptCourse(Base):
     course_ref: Mapped["Course | None"] = relationship(back_populates="transcript_courses")
 
 
-# ---------------------------------------------------------------------------
-# Advisor Notes
-# ---------------------------------------------------------------------------
 
-class AdvisorNote(Base):
-    """คำแนะนำจากอาจารย์ที่ปรึกษาถึงนักศึกษา"""
-    __tablename__ = "advisor_notes"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    advisor_id: Mapped[str] = mapped_column(ForeignKey("advisors.advisor_id"), nullable=False)
-    student_id: Mapped[str] = mapped_column(ForeignKey("students.student_id"), nullable=False)
-    note: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-
-    advisor: Mapped["Advisor"] = relationship(back_populates="notes")
-    student: Mapped["Student"] = relationship(back_populates="notes_received")

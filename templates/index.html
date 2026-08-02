@@ -303,7 +303,7 @@
     #dashboard-section.show { display: block; }
 
     /* overview cards */
-    .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px; }
+    .overview-grid { display: grid; grid-template-columns: 1fr; max-width: 320px; margin: 0 auto 24px auto; }
     @media (max-width: 768px) { .overview-grid { grid-template-columns: 1fr; } }
     .ov-card {
       background: var(--card-bg); border: 1px solid var(--border);
@@ -551,6 +551,12 @@
       <!-- Progress Bar -->
       <div class="card" id="progress-card"></div>
 
+      <!-- Categories -->
+      <div class="card">
+        <div class="card-title"><span class="icon">📊</span> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+
       <!-- In Progress -->
       <div class="card" id="inprog-card" style="display:none">
         <div class="card-title"><span class="icon">⏳</span> รายวิชาที่กำลังศึกษาในภาคเรียนปัจจุบัน</div>
@@ -573,12 +579,6 @@
             <tbody id="remaining-tbody"></tbody>
           </table>
         </div>
-      </div>
-
-      <!-- Categories -->
-      <div class="card">
-        <div class="card-title"><span class="icon">📊</span> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
-        <div class="cat-grid" id="cat-grid"></div>
       </div>
 
       <!-- Timeline -->
@@ -801,20 +801,10 @@
   function renderDashboard(d) {
     // Overview cards
     document.getElementById('overview-cards').innerHTML = `
-      <div class="ov-card primary">
-        <div class="ov-label">จำนวนรายวิชาที่สำเร็จ</div>
-        <div class="ov-value">${d.completed_courses} <span>/ ${d.total_courses}</span></div>
-        <div class="ov-sub">รายวิชา</div>
-      </div>
       <div class="ov-card success">
         <div class="ov-label">หน่วยกิตสะสมทั้งหมด</div>
         <div class="ov-value">${d.completed_credits} <span>/ ${d.total_credits}</span></div>
         <div class="ov-sub">หน่วยกิต</div>
-      </div>
-      <div class="ov-card warning">
-        <div class="ov-label">รายวิชาคงเหลือ</div>
-        <div class="ov-value">${d.remaining_courses_count}</div>
-        <div class="ov-sub">รายวิชา</div>
       </div>
     `;
 

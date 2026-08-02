@@ -32,13 +32,19 @@ NON_PASSING = {"F", "W", "WU", "U"}
 class StudentCreate(BaseModel):
     student_id: str
     name: str
+    email: str | None = None
+    admission_year: int | None = None
     advisor_id: str | None = None
+    curriculum_id: str | None = None
 
 
 class StudentOut(BaseModel):
     student_id: str
     name: str
+    email: str | None
+    admission_year: int | None
     advisor_id: str | None
+    curriculum_id: str | None
 
     model_config = {"from_attributes": True}
 
@@ -82,11 +88,14 @@ async def _get_active_transcript(student_id: str, db: AsyncSession) -> Transcrip
     return result.scalars().first()
 
 
-async def _load_curriculum_dict(db: AsyncSession) -> dict:
+async def _load_curriculum_dict(db: AsyncSession, curriculum_id: str | None = None) -> dict:
     """โหลด curriculum จาก DB แล้ว format ให้ dashboard.compute_dashboard รับได้"""
-    result = await db.execute(
-        select(Course).options(selectinload(Course.prerequisites)).order_by(Course.year, Course.semester)
-    )
+    stmt = select(Course).options(selectinload(Course.prerequisites))
+    if curriculum_id:
+        stmt = stmt.where(Course.curriculum_id == curriculum_id)
+    stmt = stmt.order_by(Course.year, Course.semester)
+    
+    result = await db.execute(stmt)
     courses = result.scalars().all()
 
     terms: dict[tuple, list] = {}
@@ -136,7 +145,14 @@ async def create_student(body: StudentCreate, db: AsyncSession = Depends(get_db)
     existing = await db.execute(select(Student).where(Student.student_id == body.student_id))
     if existing.scalars().first():
         raise HTTPException(status_code=409, detail="นักศึกษานี้มีอยู่แล้วในระบบ")
-    student = Student(student_id=body.student_id, name=body.name, advisor_id=body.advisor_id)
+    student = Student(
+        student_id=body.student_id,
+        name=body.name,
+        email=body.email,
+        admission_year=body.admission_year,
+        advisor_id=body.advisor_id,
+        curriculum_id=body.curriculum_id
+    )
     db.add(student)
     await db.commit()
     await db.refresh(student)
@@ -225,7 +241,10 @@ async def get_dashboard(student_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript ในระบบ กรุณาอัปโหลดก่อน")
 
     parsed_courses = _transcript_courses_to_list(transcript.courses)
-    curriculum = await _load_curriculum_dict(db)
+    
+    # ดึง student มาเพื่อดู curriculum_id
+    student = await _get_student_or_404(student_id, db)
+    curriculum = await _load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     return compute_dashboard(parsed_courses, curriculum)
 
 
@@ -345,7 +364,8 @@ async def simulate_progress(
                 "grade": "S",  # simulated pass
             })
 
-    curriculum = await _load_curriculum_dict(db)
+    student = await _get_student_or_404(student_id, db)
+    curriculum = await _load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     dashboard = compute_dashboard(parsed_courses, curriculum)
     dashboard["simulated"] = True
     dashboard["simulated_courses"] = body.current_course_codes

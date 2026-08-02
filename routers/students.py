@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from database import get_db
 from dashboard import compute_dashboard
 from models import (
     Course,
+    Advisor,
     Prerequisite,
     Student,
     Transcript,
@@ -104,7 +105,7 @@ async def _load_curriculum_dict(db: AsyncSession, curriculum_id: str | None = No
         terms.setdefault(key, []).append(c)
 
     curriculum_list = []
-    for (year, semester, plan_type), term_courses in sorted(terms.items()):
+    for (year, semester, plan_type), term_courses in sorted(terms.items(), key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or "")):
         curriculum_list.append({
             "year": year,
             "semester": semester,
@@ -114,7 +115,8 @@ async def _load_curriculum_dict(db: AsyncSession, curriculum_id: str | None = No
                     "course_code": c.course_code,
                     "course_name_th": c.course_name_th,
                     "course_name_en": c.course_name_en,
-                    "credit": c.credit_str,
+                    "credit": c.credit_str or str(c.credit),
+                    "url": c.url,
                     "prerequisites": [p.prereq_code for p in c.prerequisites],
                     "prereq_source": c.prereq_source,
                 }
@@ -168,12 +170,38 @@ async def get_student(student_id: str, db: AsyncSession = Depends(get_db)):
 async def upload_transcript(
     student_id: str,
     file: UploadFile = File(...),
+    student_name: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
-    """อัปโหลด Transcript PDF ใหม่ – ปิด active เดิม แล้วสร้างอันใหม่"""
-    await _get_student_or_404(student_id, db)
+    """อัปโหลดได้โดยไม่ต้องมีบัญชีนักศึกษา และเลือกอาจารย์จากปีในรหัสนักศึกษา"""
+    if not student_id.isdigit() or len(student_id) != 8:
+        raise HTTPException(status_code=400, detail="กรุณาระบุรหัสนักศึกษาเป็นตัวเลข 8 หลัก")
 
-    if file.content_type != "application/pdf":
+    result = await db.execute(select(Student).where(Student.student_id == student_id))
+    student = result.scalars().first()
+    if not student:
+        admission_year = 2500 + int(student_id[:2])
+        advisor_result = await db.execute(
+            select(Advisor).where(Advisor.cohort_year == admission_year)
+        )
+        advisor = advisor_result.scalars().first()
+        if not advisor:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ยังไม่ได้กำหนดอาจารย์ที่ปรึกษาสำหรับนักศึกษาปีการศึกษา {admission_year}",
+            )
+        student = Student(
+            student_id=student_id,
+            name=student_name.strip() or f"นักศึกษา {student_id}",
+            email=f"{student_id}@kmitl.ac.th",
+            admission_year=admission_year,
+            advisor_id=advisor.advisor_id,
+            curriculum_id="CS2564",
+        )
+        db.add(student)
+        await db.flush()
+
+    if file.content_type not in ("application/pdf", "application/octet-stream"):
         raise HTTPException(status_code=400, detail="กรุณาอัปโหลดไฟล์ .pdf เท่านั้น")
 
     # parse PDF
@@ -200,7 +228,9 @@ async def upload_transcript(
         tc = TranscriptCourse(
             transcript_id=transcript.id,
             course_code=pc["code"],
-            course_name_raw=pc["name_th"],
+            # parser returns the English transcript title; accept either key
+            # to support manually reviewed/imported course records as well.
+            course_name_raw=pc.get("name_th") or pc.get("name_en") or pc["code"],
             credit=pc["credit"],
             grade=pc.get("grade"),
         )
@@ -212,6 +242,7 @@ async def upload_transcript(
         "transcript_id": transcript.id,
         "courses_parsed": len(parsed_courses),
         "uploaded_at": transcript.uploaded_at,
+        "advisor_id": student.advisor_id,
     }
 
 

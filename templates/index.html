@@ -77,6 +77,25 @@
       align-items: center;
       gap: 16px;
     }
+    .advisor-login-link {
+      margin-left: auto;
+      padding: 9px 14px;
+      border: 1px solid var(--kmitl-orange);
+      border-radius: 7px;
+      color: var(--kmitl-orange);
+      background: #fff;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background-color .2s, color .2s;
+    }
+    .advisor-login-link:hover { background: var(--kmitl-orange); color: #fff; }
+    @media (max-width: 600px) {
+      .header-content { flex-wrap: wrap; }
+      .advisor-login-link { margin-left: 72px; margin-top: -8px; }
+    }
     .logo-box {
       width: 56px;
       height: 56px;
@@ -588,6 +607,7 @@
         <h1>ระบบตรวจสอบสถานะการสำเร็จการศึกษา</h1>
         <p>หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการคอมพิวเตอร์ สจล.</p>
       </div>
+      <a class="advisor-login-link" href="/advisor">สำหรับอาจารย์ที่ปรึกษา</a>
     </div>
   </header>
 
@@ -793,6 +813,7 @@
      STATE
   =================================================== */
   let parsedCourses = [];    // raw from /review
+  let parsedStudent = null;
   let fileObj = null;
 
   const NON_PASS = new Set(['F','W','WU','U']);
@@ -845,11 +866,10 @@
     document.getElementById('parse-btn').disabled = true;
     document.getElementById('upload-spinner').classList.add('show');
 
-    const fd = new FormData();
-    fd.append('file', fileObj);
-
     try {
-      const res = await fetch('/review', { method: 'POST', body: fd });
+      const reviewFd = new FormData();
+      reviewFd.append('file', fileObj);
+      const res = await fetch('/review', { method: 'POST', body: reviewFd });
       const data = await res.json();
       if (!res.ok || data.error) {
         showUploadError(data.error || 'เกิดข้อผิดพลาดในการอ่านไฟล์');
@@ -857,6 +877,23 @@
         return;
       }
       parsedCourses = data.courses;
+      parsedStudent = data.student;
+      if (!parsedStudent || !/^\d{8}$/.test(parsedStudent.student_id || '') || !parsedStudent.name) {
+        showUploadError('ไม่พบชื่อหรือรหัสนักศึกษา 8 หลักใน Transcript กรุณาใช้ไฟล์ฉบับที่ออกจากสำนักทะเบียน');
+        document.getElementById('parse-btn').disabled = false;
+        return;
+      }
+
+      const saveFd = new FormData();
+      saveFd.append('file', fileObj);
+      saveFd.append('student_name', parsedStudent.name || '');
+      const saveRes = await fetch(`/api/students/${parsedStudent.student_id}/transcript`, { method: 'POST', body: saveFd });
+      const saveData = await saveRes.json();
+      if (!saveRes.ok || saveData.detail) {
+        showUploadError(saveData.detail || 'ไม่สามารถบันทึก Transcript ได้');
+        document.getElementById('parse-btn').disabled = false;
+        return;
+      }
       renderReviewTable(parsedCourses);
       goToStep(2);
     } catch(e) {
@@ -1208,6 +1245,7 @@
   function resetToUpload() {
     fileObj = null;
     parsedCourses = [];
+    parsedStudent = null;
     fileInput.value = '';
     document.getElementById('file-name-display').textContent = '';
     document.getElementById('selected-file').classList.remove('show');
@@ -1286,7 +1324,7 @@
           <span class="plan-alert-icon">✅</span>
           <div class="plan-alert-content">
             <div class="plan-alert-title">สามารถจบการศึกษาได้ตามแผน 4 ปี</div>
-            หน่วยกิตที่เหลือสามารถจัดลงในเทอมที่เหลือได้ครบถ้วน
+            หน่วยกิตที่เหลือสามารถจัดลงในเทอมที่เหลือได้
           </div>
         </div>
       `;
@@ -1339,7 +1377,7 @@
           </div>
         `).join('');
       } else {
-        coursesHtml = '<div style="padding:16px 20px;color:var(--text-muted);font-size:14px;text-align:center;">ไม่มีวิชาบังคับในเทอมนี้ — สามารถลงวิชาเลือก/เสรีได้เต็มที่</div>';
+        coursesHtml = '<div style="padding:16px 20px;color:var(--text-muted);font-size:14px;text-align:center;">ไม่มีวิชาบังคับในเทอมนี้ — สามารถลงวิชาเลือก/เสรีได้</div>';
       }
 
       return `

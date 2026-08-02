@@ -20,7 +20,8 @@ WORKDIR /app
 RUN useradd --create-home --uid 1000 app
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
-COPY --chown=app:app main.py parser.py dashboard.py curriculum.json ./
+COPY --chown=app:app main.py parser.py dashboard.py database.py models.py seed.py init.sql ./
+COPY --chown=app:app routers/ ./routers/
 COPY --chown=app:app templates/ ./templates/
 
 ENV PATH="/app/.venv/bin:$PATH" \

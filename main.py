@@ -19,13 +19,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from dashboard import compute_dashboard, compute_study_plan
 from database import AsyncSessionLocal, engine
 from models import Base, Course
-from parser import parse_transcript
+from parser import parse_student_info, parse_transcript
 from routers import advisors, curriculum, students
 from seed import seed_curriculum
 
@@ -59,13 +60,14 @@ async def _load_curriculum_dict_from_db() -> dict:
                         "course_code": c.course_code,
                         "course_name_th": c.course_name_th,
                         "course_name_en": c.course_name_en,
-                        "credit": c.credit_str,
+                        "credit": c.credit_str or str(c.credit),
+                        "url": c.url,
                         "prerequisites": [p.prereq_code for p in c.prerequisites],
                     }
                     for c in v
                 ],
             }
-            for k, v in sorted(terms.items())
+            for k, v in sorted(terms.items(), key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or ""))
         ]
     }
 
@@ -98,6 +100,11 @@ app = FastAPI(
     version="3.0.0",
     lifespan=lifespan,
 )
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=__import__("os").environ.get("SESSION_SECRET", "smartgrad-demo-session-secret"),
+    https_only=__import__("os").environ.get("SESSION_HTTPS_ONLY", "false").lower() == "true",
+)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -111,6 +118,11 @@ def home(request: Request):
     return templates.TemplateResponse(request, "index.html")
 
 
+@app.get("/advisor", include_in_schema=False)
+def advisor_page(request: Request):
+    return templates.TemplateResponse(request, "advisor.html")
+
+
 @app.post("/review", include_in_schema=False)
 async def review_transcript(request: Request, file: UploadFile = File(...)):
     """Step 1: Parse PDF → return JSON list of courses for user to review/edit."""
@@ -118,11 +130,12 @@ async def review_transcript(request: Request, file: UploadFile = File(...)):
         return JSONResponse(status_code=400, content={"error": "กรุณาอัปโหลดไฟล์ .pdf เท่านั้น"})
 
     try:
+        student = parse_student_info(file.file)
         courses = parse_transcript(file.file)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"อ่านไฟล์ไม่สำเร็จ: {e}"})
 
-    return JSONResponse(content={"courses": courses})
+    return JSONResponse(content={"courses": courses, "student": student})
 
 
 @app.post("/confirm", include_in_schema=False)

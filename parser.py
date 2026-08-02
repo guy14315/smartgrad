@@ -34,6 +34,56 @@ SKIP_PREFIXES = (
     "(XX",
 )
 
+STUDENT_ID_PATTERNS = (
+    re.compile(r"\bSTUDENT\s*(?:ID|NO\.?)\s*[:#]?\s*(\d{8})\b", re.IGNORECASE),
+    re.compile(r"รหัสนักศึกษา\s*[:：]?\s*(\d{8})"),
+)
+STUDENT_NAME_PATTERNS = (
+    re.compile(
+        r"\b(?:STUDENT\s+)?NAME\s*[:：]?\s*(.+?)(?=\s+(?:STUDENT\s*(?:ID|NO\.?)|FACULTY|PROGRAM|DATE\s+OF)\b|$)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"ชื่อ(?:-นามสกุล)?\s*[:：]?\s*(.+?)(?=\s+รหัสนักศึกษา|$)"),
+)
+
+
+def _parse_student_info_from_text(text: str) -> dict:
+    """Extract KMITL student identity from transcript header text."""
+    normalized = " ".join(text.split())
+    student_id = next((m.group(1) for p in STUDENT_ID_PATTERNS if (m := p.search(normalized))), None)
+    name = None
+    # Try each extracted line first: this prevents a name field from consuming
+    # the rest of the PDF when the header is split over multiple lines.
+    for line in text.splitlines():
+        compact_line = " ".join(line.split())
+        for pattern in STUDENT_NAME_PATTERNS:
+            match = pattern.search(compact_line)
+            if match:
+                candidate = match.group(1).strip(" :")
+                if candidate and len(candidate) <= 150:
+                    name = candidate
+                    break
+        if name:
+            break
+    if not name:
+        for pattern in STUDENT_NAME_PATTERNS:
+            match = pattern.search(normalized)
+            if match:
+                candidate = match.group(1).strip(" :")
+                if candidate and len(candidate) <= 150:
+                    name = candidate
+                    break
+    return {"student_id": student_id, "name": name}
+
+
+def parse_student_info(file) -> dict:
+    """Read student ID and name from a transcript PDF."""
+    file.seek(0)
+    with pdfplumber.open(file) as pdf:
+        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    file.seek(0)
+    return _parse_student_info_from_text(text)
+
 
 def parse_transcript(file) -> list[dict]:
     """Parse a KMITL transcript PDF.

@@ -64,7 +64,7 @@ def _flat_curriculum(curriculum_data: dict) -> list[dict]:
         if "Co-op" in term.get("plan_type", ""):
             continue
         for course in term["courses"]:
-            credit_match = CREDIT_RE.match(course["credit"])
+            credit_match = CREDIT_RE.match(str(course["credit"]))
             flat.append({
                 "code": course["course_code"],
                 "name_th": course["course_name_th"],
@@ -333,14 +333,14 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
         still_remaining = []
         for c in remaining_set:
             prereqs_met = all(p in planned_passed for p in c["prereqs"])
-            scheduled_by_now = (c["year"], c["semester"]) <= (y, s)
+            scheduled_by_now = (c["year"] or 99, c["semester"] or 99) <= (y, s)
             if prereqs_met and scheduled_by_now:
                 can_take.append(c)
             else:
                 still_remaining.append(c)
 
         # sort: prioritize courses from earlier semesters, then by code
-        can_take.sort(key=lambda c: (c["year"], c["semester"], c["code"]))
+        can_take.sort(key=lambda c: (c["year"] or 99, c["semester"] or 99, c["code"]))
 
         # fit into MAX_CREDITS
         term_courses = []
@@ -371,7 +371,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
                     "name_en": c["name_en"],
                     "name_th": c["name_th"],
                     "credit": c["credit"],
-                    "is_deferred": (c["year"], c["semester"]) < (y, s),
+                    "is_deferred": (c["year"] or 99, c["semester"] or 99) < (y, s),
                 }
                 for c in term_courses
             ],

@@ -28,10 +28,11 @@ class CourseOut(BaseModel):
     course_code: str
     course_name_th: str
     course_name_en: str
-    credit_str: str
+    credit_str: str | None = None
     credit: int
-    year: int
-    semester: int
+    year: int | None = None
+    semester: int | None = None
+    url: str | None = None
     plan_type: str | None
     prerequisites: list[str]
 
@@ -39,8 +40,8 @@ class CourseOut(BaseModel):
 
 
 class TermOut(BaseModel):
-    year: int
-    semester: int
+    year: int | None = None
+    semester: int | None = None
     plan_type: str | None
     courses: list[CourseOut]
 
@@ -58,6 +59,7 @@ def _course_to_out(c: Course) -> CourseOut:
         credit=c.credit,
         year=c.year,
         semester=c.semester,
+        url=c.url,
         plan_type=c.plan_type,
         prerequisites=[p.prereq_code for p in c.prerequisites],
     )
@@ -78,14 +80,14 @@ async def get_curriculum(db: AsyncSession = Depends(get_db)):
     courses = result.scalars().all()
 
     # group into terms
-    terms: dict[tuple[int, int, str | None], list[CourseOut]] = {}
+    terms: dict[tuple[int | None, int | None, str | None], list[CourseOut]] = {}
     for c in courses:
         key = (c.year, c.semester, c.plan_type)
         terms.setdefault(key, []).append(_course_to_out(c))
 
     return [
         TermOut(year=k[0], semester=k[1], plan_type=k[2], courses=v)
-        for k, v in sorted(terms.items())
+        for k, v in sorted(terms.items(), key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or ""))
     ]
 
 

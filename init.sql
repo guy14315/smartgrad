@@ -18,10 +18,11 @@ CREATE TABLE IF NOT EXISTS courses (
     curriculum_id VARCHAR(50),
     course_name_th VARCHAR(255) NOT NULL,
     course_name_en VARCHAR(255) NOT NULL,
-    credit_str VARCHAR(20) NOT NULL,
+    credit_str VARCHAR(20),
     credit INTEGER NOT NULL DEFAULT 0,
-    year INTEGER NOT NULL,
-    semester INTEGER NOT NULL,
+    year INTEGER,
+    semester INTEGER,
+    url VARCHAR(500),
     plan_type VARCHAR(100),
     prereq_source VARCHAR(20),
     FOREIGN KEY (curriculum_id) REFERENCES curriculums(curriculum_id)
@@ -40,6 +41,12 @@ CREATE TABLE IF NOT EXISTS advisors (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
     cohort_year INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS advisor_credentials (
+    advisor_id VARCHAR(20) PRIMARY KEY,
+    password_hash VARCHAR(128) NOT NULL,
+    FOREIGN KEY (advisor_id) REFERENCES advisors(advisor_id)
 );
 
 CREATE TABLE IF NOT EXISTS students (
@@ -72,6 +79,18 @@ CREATE TABLE IF NOT EXISTS transcript_courses (
     is_overridden BOOLEAN DEFAULT 0,
     FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE,
     FOREIGN KEY (course_code) REFERENCES courses(course_code)
+);
+
+CREATE TABLE IF NOT EXISTS advisor_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    advisor_id VARCHAR(20) NOT NULL,
+    student_id VARCHAR(20) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    recipient_email VARCHAR(255) NOT NULL,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    FOREIGN KEY (advisor_id) REFERENCES advisors(advisor_id),
+    FOREIGN KEY (student_id) REFERENCES students(student_id)
 );
 
 
@@ -156,3 +175,18 @@ INSERT OR IGNORE INTO prerequisites (course_code, prereq_code) VALUES
 ('05506237', '05506004'),
 ('05506098', '05506017'),
 ('05506099', '05506098');
+
+-- ---------------------------------------------------------------------------
+-- 4. DEMO ADVISOR ACCOUNT
+-- ADVISOR001 is responsible for students admitted in academic year 2567
+-- Password: smartgrad-demo (SHA-256 hash)
+-- ---------------------------------------------------------------------------
+
+INSERT OR IGNORE INTO advisors (advisor_id, name, email, cohort_year) VALUES
+('ADVISOR001', 'อาจารย์ที่ปรึกษา Demo', 'advisor.demo@kmitl.ac.th', 2567);
+
+-- update existing demo database created before cohort_year was introduced
+UPDATE advisors SET cohort_year = 2567 WHERE advisor_id = 'ADVISOR001';
+
+INSERT OR IGNORE INTO advisor_credentials (advisor_id, password_hash) VALUES
+('ADVISOR001', '078ee266aebf60902e9bec6f75496444a0b89324c84f830bc7de7655dea5b557');

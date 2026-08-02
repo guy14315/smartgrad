@@ -32,10 +32,11 @@ class Course(Base):
     curriculum_id: Mapped[str | None] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=True)
     course_name_th: Mapped[str] = mapped_column(String(255), nullable=False)
     course_name_en: Mapped[str] = mapped_column(String(255), nullable=False)
-    credit_str: Mapped[str] = mapped_column(String(20), nullable=False)   # e.g. "3(2-2-5)"
+    credit_str: Mapped[str | None] = mapped_column(String(20), nullable=True)   # e.g. "3(2-2-5)"
     credit: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # parsed credit hours
-    year: Mapped[int] = mapped_column(Integer, nullable=False)
-    semester: Mapped[int] = mapped_column(Integer, nullable=False)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     plan_type: Mapped[str | None] = mapped_column(String(100), nullable=True)  # None = normal
     prereq_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
@@ -74,6 +75,29 @@ class Advisor(Base):
     cohort_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     students: Mapped[list["Student"]] = relationship(back_populates="advisor")
+
+
+class AdvisorCredential(Base):
+    """ข้อมูลเข้าสู่ระบบสำหรับอาจารย์ที่ปรึกษา (ใช้เฉพาะ demo ในปัจจุบัน)"""
+    __tablename__ = "advisor_credentials"
+
+    advisor_id: Mapped[str] = mapped_column(
+        ForeignKey("advisors.advisor_id"), primary_key=True
+    )
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+
+
+class AdvisorNote(Base):
+    """บันทึกคำแนะนำที่อาจารย์ส่งให้นักศึกษา"""
+    __tablename__ = "advisor_notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    advisor_id: Mapped[str] = mapped_column(ForeignKey("advisors.advisor_id"), nullable=False)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.student_id"), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    recipient_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
 
 class Student(Base):
@@ -124,6 +148,5 @@ class TranscriptCourse(Base):
 
     transcript: Mapped["Transcript"] = relationship(back_populates="courses")
     course_ref: Mapped["Course | None"] = relationship(back_populates="transcript_courses")
-
 
 

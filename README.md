@@ -4,6 +4,7 @@
 - `parser.py` — extracts course code/credit/grade rows out of the transcript PDF with `pdfplumber`
 - `dashboard.py` — matches parsed courses against `curriculum.json` and computes progress
 - `templates/index.html` — the single upload/results page (Jinja2)
+- `templates/advisor.html` — หน้าสำหรับอาจารย์ที่ปรึกษา (`/advisor`)
 
 ## Prerequisites
 
@@ -56,3 +57,29 @@ docker run -p 8080:8080 smartgrad
 ## Deployment
 
 The `Dockerfile` reads the `PORT` env var (defaulting to 8080), which matches what Google Cloud Run expects — build and deploy the image there via `gcloud run deploy`.
+
+## หน้าสำหรับอาจารย์ที่ปรึกษา
+
+เปิด `http://localhost:8000/advisor` แล้วเข้าสู่ระบบด้วยบัญชีสาธิตที่ระบบสร้างในฐานข้อมูลให้อัตโนมัติเมื่อเริ่มต้น:
+
+- รหัสอาจารย์: `ADVISOR001`
+- รหัสผ่าน: `smartgrad-demo`
+- ปีการศึกษาที่ดูแล: `2567` (รหัสนักศึกษาที่ขึ้นต้นด้วย `67`)
+
+หน้านี้จะแสดงเฉพาะนักศึกษาในความดูแลที่อัปโหลด Transcript แล้วเท่านั้น และการส่งคำแนะนำจะส่งไปยัง `{รหัสนักศึกษา 8 หลัก}@kmitl.ac.th`
+
+นักศึกษาไม่ต้องมีบัญชี: ที่หน้าอัปโหลดหลักเพียงเลือกไฟล์ Transcript ระบบจะอ่านรหัสนักศึกษาและชื่อจาก PDF สร้างข้อมูลนักศึกษา และผูกอาจารย์ตาม `cohort_year` ของบัญชีอาจารย์ใน `init.sql` โดยอัตโนมัติ เช่น `67050476` จะถูกผูกกับอาจารย์ของปี `2567`.
+
+ตั้งค่าการส่งอีเมลผ่านตัวแปรระบบต่อไปนี้ (ไม่ต้องใส่รหัสผ่านลงในโค้ด):
+
+```bash
+SESSION_SECRET=replace-with-a-long-random-value
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_FROM=smartgrad@example.com
+SMTP_USERNAME=smartgrad@example.com
+SMTP_PASSWORD=your-smtp-password
+SMTP_STARTTLS=true
+```
+
+หากยังไม่ได้ตั้งค่า `SMTP_HOST` และ `SMTP_FROM` ระบบจะแจ้งว่าไม่สามารถส่งอีเมลได้ โดยจะไม่บันทึกโน้ตว่า “ส่งสำเร็จ”

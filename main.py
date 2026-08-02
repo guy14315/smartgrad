@@ -22,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from dashboard import compute_dashboard
+from dashboard import compute_dashboard, compute_study_plan
 from database import AsyncSessionLocal, engine
 from models import Base, Course
 from parser import parse_transcript
@@ -137,6 +137,21 @@ async def confirm_courses(request: Request):
     curriculum_dict = await _load_curriculum_dict_from_db()
     dashboard = compute_dashboard(courses, curriculum_dict)
     return JSONResponse(content=dashboard)
+
+
+@app.post("/plan", include_in_schema=False)
+async def study_plan(request: Request):
+    """Compute a semester-by-semester study plan for remaining courses."""
+    try:
+        body = await request.json()
+        courses = body.get("courses", [])
+        plan_type = body.get("plan_type", "normal")
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "ข้อมูลไม่ถูกต้อง"})
+
+    curriculum_dict = await _load_curriculum_dict_from_db()
+    plan = compute_study_plan(courses, curriculum_dict, plan_type)
+    return JSONResponse(content=plan)
 
 
 # ---------------------------------------------------------------------------

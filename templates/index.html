@@ -303,8 +303,7 @@
     #dashboard-section.show { display: block; }
 
     /* overview cards */
-    .overview-grid { display: grid; grid-template-columns: 1fr; max-width: 320px; margin: 0 auto 24px auto; }
-    @media (max-width: 768px) { .overview-grid { grid-template-columns: 1fr; } }
+    .overview-grid { display: grid; grid-template-columns: 1fr; margin-bottom: 24px; }
     .ov-card {
       background: var(--card-bg); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 24px;
@@ -429,6 +428,154 @@
       font-family: 'Prompt', sans-serif; padding: 0; transition: color 0.2s;
     }
     .reset-link:hover { color: var(--kmitl-orange); }
+
+    /* ===== STUDY PLAN ===== */
+    #plan-section { display: none; }
+    #plan-section.show { display: block; }
+
+    .plan-actions {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .btn-plan {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: 8px; font-size: 15px; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.25s;
+      font-family: 'Prompt', sans-serif;
+      background: linear-gradient(135deg, var(--kmitl-orange), var(--kmitl-orange-light));
+      color: #fff; box-shadow: 0 4px 12px rgba(230, 85, 37, 0.3);
+    }
+    .btn-plan:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(230, 85, 37, 0.4); }
+    .btn-plan:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .plan-toggle {
+      display: inline-flex; border-radius: 8px; overflow: hidden;
+      border: 2px solid var(--gray-200); background: var(--card-bg);
+    }
+    .plan-toggle-btn {
+      padding: 10px 20px; border: none; background: transparent;
+      font-family: 'Prompt', sans-serif; font-size: 14px; font-weight: 500;
+      color: var(--gray-500); cursor: pointer; transition: all 0.2s;
+    }
+    .plan-toggle-btn.active {
+      background: var(--kmitl-orange); color: #fff;
+    }
+    .plan-toggle-btn:hover:not(.active) { background: var(--gray-50); color: var(--navy-800); }
+
+    .plan-alert {
+      padding: 16px 20px; border-radius: var(--radius); margin-bottom: 16px;
+      font-size: 14px; font-family: 'Prompt', sans-serif;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .plan-alert.warning {
+      background: #FEF3C7; border: 1px solid #FCD34D; color: #92400E;
+    }
+    .plan-alert.danger {
+      background: var(--danger-light); border: 1px solid #FCA5A5; color: #991B1B;
+    }
+    .plan-alert.success {
+      background: var(--success-light); border: 1px solid #6EE7B7; color: #065F46;
+    }
+    .plan-alert.info {
+      background: #DBEAFE; border: 1px solid #93C5FD; color: #1E40AF;
+    }
+    .plan-alert-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+    .plan-alert-content { flex: 1; }
+    .plan-alert-title { font-weight: 600; margin-bottom: 4px; }
+
+    .plan-summary-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .plan-stat {
+      background: var(--gray-50); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 20px; text-align: center;
+    }
+    .plan-stat-value {
+      font-size: 28px; font-weight: 700; font-family: 'Prompt', sans-serif;
+      color: var(--navy-900); line-height: 1;
+    }
+    .plan-stat-value.ok { color: var(--success); }
+    .plan-stat-value.warn { color: var(--warning); }
+    .plan-stat-label {
+      font-size: 13px; color: var(--text-muted); margin-top: 6px;
+      font-family: 'Prompt', sans-serif;
+    }
+
+    .plan-term {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 16px; overflow: hidden;
+    }
+    .plan-term-header {
+      background: var(--gray-50); padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .plan-term-header:hover { background: var(--gray-100); }
+    .plan-term-left { display: flex; align-items: center; gap: 12px; }
+    .plan-term-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: var(--kmitl-orange); flex-shrink: 0;
+    }
+    .plan-term-label {
+      font-size: 16px; font-weight: 600; font-family: 'Prompt', sans-serif;
+      color: var(--navy-800);
+    }
+    .plan-term-meta {
+      display: flex; gap: 16px; font-size: 13px; font-family: 'Prompt', sans-serif;
+    }
+    .plan-term-meta span { color: var(--text-muted); }
+    .plan-term-meta strong { color: var(--navy-800); }
+    .plan-term-chevron { font-size: 12px; color: var(--gray-400); transition: transform 0.2s; }
+    .plan-term-chevron.open { transform: rotate(180deg); }
+
+    .plan-term-body { display: none; border-top: 1px solid var(--border); background: #fff; }
+    .plan-term-body.show { display: block; }
+
+    .plan-course-row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 12px 20px; border-bottom: 1px solid var(--gray-100); font-size: 14px;
+    }
+    .plan-course-row:last-child { border-bottom: none; }
+    .plan-course-code { font-family: monospace; font-size: 13px; color: var(--text-muted); width: 80px; flex-shrink: 0; }
+    .plan-course-name { flex: 1; color: var(--navy-800); font-weight: 500; }
+    .plan-course-credit { color: var(--text-muted); font-size: 13px; flex-shrink: 0; }
+
+    .plan-badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      font-family: 'Prompt', sans-serif; padding: 2px 8px;
+      border-radius: 4px; flex-shrink: 0;
+    }
+    .plan-badge.required { background: #FFF7ED; color: #C2410C; border: 1px solid #FDBA74; }
+    .plan-badge.deferred { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+
+    .plan-term-footer {
+      padding: 12px 20px; background: var(--gray-50);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; font-family: 'Prompt', sans-serif;
+    }
+    .plan-term-footer span { color: var(--text-muted); }
+    .plan-term-footer strong { color: var(--navy-800); }
+    .plan-credits-bar {
+      height: 6px; border-radius: 99px; background: var(--gray-200);
+      flex: 1; margin: 0 16px; max-width: 200px; overflow: hidden;
+    }
+    .plan-credits-fill {
+      height: 100%; border-radius: 99px; background: var(--kmitl-orange);
+      transition: width 0.6s ease;
+    }
+
+    .plan-suggestion-list {
+      list-style: none; padding: 0;
+    }
+    .plan-suggestion-list li {
+      padding: 8px 0; font-size: 14px; color: var(--navy-700);
+      border-bottom: 1px solid var(--gray-100);
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .plan-suggestion-list li:last-child { border-bottom: none; }
   </style>
 </head>
 
@@ -543,6 +690,7 @@
 
     <!-- Step 3: Dashboard -->
     <div id="dashboard-section">
+      <div id="dashboard-content-wrapper">
       <button class="reset-link" onclick="resetToUpload()">← อัปโหลดเอกสารใหม่</button>
 
       <!-- Overview -->
@@ -550,6 +698,27 @@
 
       <!-- Progress Bar -->
       <div class="card" id="progress-card"></div>
+
+      <!-- Study Plan Button & Section -->
+      <div class="card">
+        <div class="card-title"><span class="icon">📋</span> วางแผนการเรียน</div>
+        <p style="font-size:15px;color:var(--text-muted);margin-bottom:20px;">
+          ระบบจะวิเคราะห์วิชาที่เหลือและแนะนำแผนการลงทะเบียนเรียนในแต่ละเทอมจนจบหลักสูตร
+        </p>
+        <div class="plan-actions">
+          <div class="plan-toggle" id="plan-toggle">
+            <button class="plan-toggle-btn active" data-plan="normal" onclick="setPlanType('normal')">แผนปกติ (ปัญหาพิเศษ)</button>
+            <button class="plan-toggle-btn" data-plan="coop" onclick="setPlanType('coop')">แผนสหกิจศึกษา</button>
+          </div>
+          <button class="btn-plan" id="plan-btn" onclick="generatePlan()">
+            📋 สร้างแผนการเรียน
+          </button>
+          <div class="spinner" id="plan-spinner" style="padding:0;">
+            <div class="spin"></div>
+            <span style="font-size:14px;color:var(--text-muted)">กำลังคำนวณแผน...</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Categories -->
       <div class="card">
@@ -585,6 +754,34 @@
       <div class="card">
         <div class="card-title"><span class="icon">📅</span> ประวัติการศึกษาแยกตามภาคเรียน</div>
         <div id="timeline-list"></div>
+      </div>
+
+      </div><!-- /dashboard-content-wrapper -->
+
+      <div id="plan-section">
+        <div class="card" style="margin-bottom:24px; padding:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+          <div>
+            <button class="reset-link" onclick="closePlan()" style="margin-bottom:12px;">← กลับไปหน้า Dashboard</button>
+            <h2 style="margin:0; font-family:'Prompt'; font-size:22px; color:var(--navy-800);"><span class="icon">📋</span> แผนการเรียนที่แนะนำ</h2>
+          </div>
+          <div class="plan-toggle">
+            <button class="plan-toggle-btn active" data-plan="normal" onclick="setPlanType('normal')">แผนปกติ (ปัญหาพิเศษ)</button>
+            <button class="plan-toggle-btn" data-plan="coop" onclick="setPlanType('coop')">แผนสหกิจศึกษา</button>
+          </div>
+        </div>
+
+        <div id="plan-warnings"></div>
+        <div id="plan-summary"></div>
+        <div class="card">
+          <div class="card-title"><span class="icon">🗓️</span> แผนการเรียนรายเทอม</div>
+          <div id="plan-terms-list"></div>
+        </div>
+        <div id="plan-suggestions" style="display:none">
+          <div class="card">
+            <div class="card-title"><span class="icon">💡</span> คำแนะนำ</div>
+            <ul class="plan-suggestion-list" id="plan-suggestions-list"></ul>
+          </div>
+        </div>
       </div>
 
     </div><!-- /dashboard -->
@@ -980,6 +1177,11 @@
     document.getElementById('review-section').style.display = (step === 2) ? 'block' : 'none';
     document.getElementById('dashboard-section').style.display = (step === 3) ? 'block' : 'none';
 
+    if (step === 3) {
+      document.getElementById('dashboard-content-wrapper').style.display = 'block';
+      document.getElementById('plan-section').classList.remove('show');
+    }
+
     // update dots
     [1,2,3].forEach(i => {
       const dot = document.getElementById(`step${i}-dot`);
@@ -1012,6 +1214,184 @@
     document.getElementById('parse-btn').disabled = true;
     hideUploadError();
     goToStep(1);
+  }
+
+  /* ===================================================
+     STUDY PLAN
+  =================================================== */
+  let selectedPlanType = 'normal';
+
+  function setPlanType(type) {
+    selectedPlanType = type;
+    document.querySelectorAll('.plan-toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.plan === type);
+    });
+    // If plan is already showing, regenerate
+    if (document.getElementById('plan-section').classList.contains('show')) {
+      generatePlan();
+    }
+  }
+
+  async function generatePlan() {
+    const btn = document.getElementById('plan-btn');
+    const spinner = document.getElementById('plan-spinner');
+    btn.disabled = true;
+    spinner.classList.add('show');
+
+    try {
+      const res = await fetch('/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courses: parsedCourses, plan_type: selectedPlanType }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        alert('เกิดข้อผิดพลาด: ' + (data.error || 'ไม่ทราบสาเหตุ'));
+        return;
+      }
+      renderStudyPlan(data);
+      document.getElementById('dashboard-content-wrapper').style.display = 'none';
+      document.getElementById('plan-section').classList.add('show');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+    } finally {
+      btn.disabled = false;
+      spinner.classList.remove('show');
+    }
+  }
+
+  function closePlan() {
+    document.getElementById('plan-section').classList.remove('show');
+    document.getElementById('dashboard-content-wrapper').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderStudyPlan(d) {
+    // Warnings
+    const warningsEl = document.getElementById('plan-warnings');
+    if (d.warnings.length > 0) {
+      warningsEl.innerHTML = d.warnings.map(w => {
+        const isDanger = w.includes('มากกว่า 4 ปี') || w.includes('ไม่สามารถ');
+        return `
+          <div class="plan-alert ${isDanger ? 'danger' : 'warning'}">
+            <span class="plan-alert-icon">${isDanger ? '🚨' : '🚨'}</span>
+            <div class="plan-alert-content">${w}</div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      warningsEl.innerHTML = `
+        <div class="plan-alert success">
+          <span class="plan-alert-icon">✅</span>
+          <div class="plan-alert-content">
+            <div class="plan-alert-title">สามารถจบการศึกษาได้ตามแผน 4 ปี</div>
+            หน่วยกิตที่เหลือสามารถจัดลงในเทอมที่เหลือได้ครบถ้วน
+          </div>
+        </div>
+      `;
+    }
+
+    // Summary stats
+    const summaryEl = document.getElementById('plan-summary');
+    summaryEl.innerHTML = `
+      <div class="plan-summary-grid">
+        <div class="plan-stat">
+          <div class="plan-stat-value">${d.remaining_elective_credits}</div>
+          <div class="plan-stat-label">หน่วยกิตเลือกเฉพาะสาขาที่เหลือ</div>
+        </div>
+        <div class="plan-stat">
+          <div class="plan-stat-value">${d.remaining_free_credits}</div>
+          <div class="plan-stat-label">หน่วยกิตเลือกเสรีที่เหลือ</div>
+        </div>
+        <div class="plan-stat">
+          <div class="plan-stat-value">${d.remaining_ge_credits}</div>
+          <div class="plan-stat-label">หน่วยกิต GE ที่เหลือ</div>
+        </div>
+        <div class="plan-stat">
+          <div class="plan-stat-value ${d.can_graduate_on_time ? 'ok' : 'warn'}">${d.total_available_slots}</div>
+          <div class="plan-stat-label">ช่องว่างในแผน (หน่วยกิต)</div>
+        </div>
+      </div>
+    `;
+
+    // Plan terms
+    const termsEl = document.getElementById('plan-terms-list');
+    if (d.plan_terms.length === 0) {
+      termsEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:24px;">ไม่มีเทอมที่เหลือในแผนการศึกษา</p>';
+      return;
+    }
+
+    termsEl.innerHTML = d.plan_terms.map((term, i) => {
+      const usedPct = Math.round((term.core_credits / term.max_credits) * 100);
+      const hasCourses = term.core_courses.length > 0;
+
+      let coursesHtml = '';
+      if (hasCourses) {
+        coursesHtml = term.core_courses.map(c => `
+          <div class="plan-course-row">
+            <div class="plan-course-code">${c.code}</div>
+            <div class="plan-course-name">${c.name_en || c.name_th}</div>
+            <span class="plan-badge ${c.is_deferred ? 'deferred' : 'required'}">
+              ${c.is_deferred ? 'เลื่อนมา' : 'บังคับ'}
+            </span>
+            <div class="plan-course-credit">${c.credit} นก.</div>
+          </div>
+        `).join('');
+      } else {
+        coursesHtml = '<div style="padding:16px 20px;color:var(--text-muted);font-size:14px;text-align:center;">ไม่มีวิชาบังคับในเทอมนี้ — สามารถลงวิชาเลือก/เสรีได้เต็มที่</div>';
+      }
+
+      return `
+        <div class="plan-term">
+          <div class="plan-term-header" onclick="togglePlanTerm(${i})">
+            <div class="plan-term-left">
+              <div class="plan-term-dot"></div>
+              <div class="plan-term-label">${term.label}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <div class="plan-term-meta">
+                <span>บังคับ: <strong>${term.core_credits} นก.</strong></span>
+                <span>ว่าง: <strong style="color:${term.available_credits > 0 ? 'var(--success)' : 'var(--danger)'}">${term.available_credits} นก.</strong></span>
+              </div>
+              <div class="plan-term-chevron" id="plan-chev-${i}">▼</div>
+            </div>
+          </div>
+          <div class="plan-term-body" id="plan-body-${i}">
+            ${coursesHtml}
+            <div class="plan-term-footer">
+              <span>หน่วยกิตที่ใช้: <strong>${term.core_credits}</strong> / ${term.max_credits}</span>
+              <div class="plan-credits-bar">
+                <div class="plan-credits-fill" style="width:${usedPct}%"></div>
+              </div>
+              <span>เหลือลงเพิ่มได้: <strong style="color:var(--success)">${term.available_credits}</strong> นก.</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Suggestions
+    const sugEl = document.getElementById('plan-suggestions');
+    const sugListEl = document.getElementById('plan-suggestions-list');
+    if (d.suggestions.length > 0) {
+      sugEl.style.display = 'block';
+      sugListEl.innerHTML = d.suggestions.map(s => `<li><span>💡</span> ${s}</li>`).join('');
+    } else {
+      sugEl.style.display = 'none';
+    }
+  }
+
+  function togglePlanTerm(idx) {
+    const body = document.getElementById(`plan-body-${idx}`);
+    const chev = document.getElementById(`plan-chev-${idx}`);
+    if (body.classList.contains('show')) {
+      body.classList.remove('show');
+      chev.classList.remove('open');
+    } else {
+      body.classList.add('show');
+      chev.classList.add('open');
+    }
   }
 
 </script>

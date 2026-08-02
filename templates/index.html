@@ -2,121 +2,1028 @@
 <html lang="th">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartGrad - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบตรวจสอบสถานะการสำเร็จการศึกษา - สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง</title>
+  <meta name="description" content="ระบบตรวจสอบความก้าวหน้าการเรียนและวิชาคงเหลือ ภาควิชาวิทยาการคอมพิวเตอร์" />
+  
+  <!-- Google Fonts: Sarabun for formal text, Prompt for headings -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <style>
+    /* ===== DESIGN TOKENS (KMITL Theme) ===== */
+    :root {
+      --kmitl-orange: #E65525;
+      --kmitl-orange-light: #F0764D;
+      --kmitl-orange-dark: #C44319;
+      --navy-900: #0F172A;
+      --navy-800: #1E293B;
+      --navy-700: #334155;
+      --gray-50: #F8FAFC;
+      --gray-100: #F1F5F9;
+      --gray-200: #E2E8F0;
+      --gray-300: #CBD5E1;
+      --gray-500: #64748B;
+      
+      --bg: var(--gray-50);
+      --card-bg: #FFFFFF;
+      --text-main: var(--navy-800);
+      --text-muted: var(--gray-500);
+      --border: var(--gray-200);
+      
+      --success: #059669;
+      --success-light: #D1FAE5;
+      --warning: #D97706;
+      --warning-light: #FEF3C7;
+      --danger: #DC2626;
+      --danger-light: #FEE2E2;
+      
+      --radius: 8px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    h1, h2, h3, h4, h5, h6, .font-prompt {
+      font-family: 'Prompt', sans-serif;
+    }
+
+    .container { max-width: 1024px; margin: 0 auto; padding: 0 24px 40px; }
+
+    /* ===== HEADER ===== */
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 2px solid var(--kmitl-orange);
+      padding: 24px 0;
+      margin-bottom: 40px;
+      box-shadow: var(--shadow-sm);
+    }
+    .header-content {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-box {
+      width: 56px;
+      height: 56px;
+      background-color: var(--kmitl-orange);
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
+      font-family: 'Prompt', sans-serif;
+    }
+    .header-text h1 {
+      font-size: 20px;
+      color: var(--navy-900);
+      margin-bottom: 4px;
+    }
+    .header-text p {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-family: 'Prompt', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy-900);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .card-title .icon { color: var(--kmitl-orange); }
+
+    /* ===== UPLOAD ZONE ===== */
+    #upload-zone {
+      border: 2px dashed var(--gray-300);
+      border-radius: var(--radius);
+      background-color: var(--gray-50);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    #upload-zone:hover, #upload-zone.drag-over {
+      border-color: var(--kmitl-orange);
+      background-color: #FFF7F5;
+    }
+    #upload-zone .upload-icon { font-size: 48px; margin-bottom: 16px; display: block; color: var(--gray-500); }
+    #upload-zone:hover .upload-icon { color: var(--kmitl-orange); }
+    #upload-zone p { color: var(--text-muted); font-size: 15px; margin-top: 8px; }
+    #upload-zone strong { color: var(--navy-800); font-family: 'Prompt', sans-serif; }
+    #file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    
+    #file-label {
+      display: inline-block; margin-top: 16px;
+      background: var(--card-bg); color: var(--navy-800);
+      border: 1px solid var(--border);
+      padding: 10px 24px; border-radius: 6px; font-size: 15px; font-weight: 500;
+      font-family: 'Prompt', sans-serif;
+      transition: all 0.2s;
+    }
+    #upload-zone:hover #file-label { border-color: var(--kmitl-orange); color: var(--kmitl-orange); }
+
+    #selected-file {
+      display: none; margin-top: 16px; padding: 12px 16px;
+      background: #FFF7F5; border: 1px solid #FADED5;
+      border-radius: var(--radius); font-size: 15px; color: var(--kmitl-orange-dark);
+      align-items: center; gap: 8px; font-weight: 500;
+    }
+    #selected-file.show { display: flex; }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 6px; font-size: 15px; font-weight: 500;
+      border: 1px solid transparent; cursor: pointer; transition: all 0.2s; font-family: 'Prompt', sans-serif;
+    }
+    .btn-primary { 
+      background-color: var(--kmitl-orange); color: #fff; 
+      width: 100%; justify-content: center; margin-top: 24px; 
+      box-shadow: 0 2px 4px rgba(230, 85, 37, 0.2);
+    }
+    .btn-primary:hover:not(:disabled) { background-color: var(--kmitl-orange-dark); transform: translateY(-1px); }
+    .btn-primary:disabled { background-color: var(--gray-300); color: var(--gray-500); cursor: not-allowed; box-shadow: none; }
+    
+    .btn-success { background-color: var(--success); color: #fff; }
+    .btn-success:hover { background-color: #047857; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2); }
+
+    .btn-outline { background-color: transparent; border-color: var(--border); color: var(--navy-700); }
+    .btn-outline:hover { background-color: var(--gray-50); border-color: var(--gray-300); }
+
+    /* ===== ALERTS & NOTES ===== */
+    .note {
+      margin-top: 24px; padding: 16px;
+      background: var(--gray-50); border-left: 4px solid var(--kmitl-orange);
+      border-radius: 0 var(--radius) var(--radius) 0; font-size: 14px; color: var(--navy-700);
+    }
+    .error-box {
+      padding: 16px; background: var(--danger-light); border-left: 4px solid var(--danger);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 14px; color: var(--danger); margin-top: 16px; font-family: 'Prompt', sans-serif;
+    }
+
+    /* ===== SPINNER ===== */
+    .spinner {
+      display: none; align-items: center; justify-content: center; gap: 12px;
+      padding: 24px; color: var(--text-muted); font-size: 15px; font-family: 'Prompt', sans-serif;
+    }
+    .spinner.show { display: flex; }
+    .spin {
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--kmitl-orange);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== STEP INDICATOR ===== */
+    .steps {
+      display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 32px;
+      max-width: 600px; margin-left: auto; margin-right: auto;
+    }
+    .step-item { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; z-index: 2; }
+    .step-dot {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--card-bg); border: 2px solid var(--gray-300);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 600; color: var(--gray-500);
+      transition: all 0.3s; font-family: 'Prompt', sans-serif;
+    }
+    .step-dot.active { background: var(--kmitl-orange); border-color: var(--kmitl-orange); color: #fff; }
+    .step-dot.done { background: var(--success); border-color: var(--success); color: #fff; }
+    .step-label { font-size: 13px; color: var(--gray-500); font-family: 'Prompt', sans-serif; font-weight: 500; }
+    .step-label.active { color: var(--navy-900); }
+    .step-line { flex: 1; height: 2px; background: var(--gray-200); margin: 0 -16px; position: relative; top: -12px; z-index: 1; }
+    .step-line.done { background: var(--success); }
+
+    /* ===== REVIEW TABLE ===== */
+    #review-section { display: none; }
+    #review-section.show { display: block; }
+
+    .review-info {
+      display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .review-badge {
+      background: var(--gray-50); border: 1px solid var(--border);
+      border-radius: 6px; padding: 12px 20px; font-size: 15px; color: var(--navy-800);
+    }
+    .review-badge strong { color: var(--kmitl-orange); font-family: 'Prompt', sans-serif; font-size: 16px; }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
+    th {
+      padding: 12px 16px; text-align: left; font-size: 14px; font-family: 'Prompt', sans-serif;
+      color: var(--navy-700); font-weight: 600; white-space: nowrap;
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background-color: var(--gray-50); }
+
+    .code-cell { font-family: monospace; font-size: 14px; color: var(--text-muted); }
+    .credit-cell { text-align: center; font-weight: 500; }
+
+    .grade-input {
+      background: transparent; border: 1px solid transparent;
+      border-radius: 4px; color: var(--navy-900); padding: 4px 8px;
+      font-size: 14px; width: 72px; text-align: center; font-family: 'Prompt', sans-serif;
+      font-weight: 500; transition: all 0.2s;
+    }
+    .grade-input:hover { border-color: var(--gray-300); background: #fff; }
+    .grade-input:focus { outline: none; border-color: var(--kmitl-orange); box-shadow: 0 0 0 2px rgba(230,85,37,0.1); }
+    .grade-input.overridden { border-color: var(--warning); color: var(--warning); background-color: var(--warning-light); }
+
+    .sem-header td {
+      background: var(--gray-100); border-bottom: 1px solid var(--gray-200);
+      font-size: 14px; font-weight: 600; color: var(--navy-800);
+      padding: 10px 16px; font-family: 'Prompt', sans-serif;
+    }
+
+    .badge-current {
+      display: inline-block; font-size: 12px; font-weight: 500; font-family: 'Prompt', sans-serif;
+      background: var(--warning-light); color: var(--warning);
+      border: 1px solid rgba(217,119,6,0.2); border-radius: 4px;
+      padding: 2px 8px; margin-left: 8px;
+    }
+    .badge-pass {
+      display: inline-block; font-size: 13px; font-weight: 600; font-family: 'Prompt', sans-serif;
+      background: var(--success-light); color: var(--success);
+      border-radius: 4px; padding: 4px 12px;
+    }
+    .badge-fail {
+      display: inline-block; font-size: 13px; font-weight: 600; font-family: 'Prompt', sans-serif;
+      background: var(--danger-light); color: var(--danger);
+      border-radius: 4px; padding: 4px 12px;
+    }
+
+    .confirm-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 24px; gap: 16px; flex-wrap: wrap;
+      background: var(--gray-50); padding: 20px; border-radius: var(--radius); border: 1px solid var(--gray-200);
+    }
+    .confirm-bar p { font-size: 15px; color: var(--navy-800); font-family: 'Prompt', sans-serif; }
+    .confirm-bar strong { color: var(--kmitl-orange); }
+
+    /* ===== DASHBOARD ===== */
+    #dashboard-section { display: none; }
+    #dashboard-section.show { display: block; }
+
+    /* overview cards */
+    .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px; }
+    @media (max-width: 768px) { .overview-grid { grid-template-columns: 1fr; } }
+    .ov-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px;
+      position: relative; overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .ov-card::before {
+      content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+    }
+    .ov-card.primary::before { background: var(--kmitl-orange); }
+    .ov-card.success::before { background: var(--success); }
+    .ov-card.warning::before { background: var(--warning); }
+    
+    .ov-label { font-size: 14px; color: var(--text-muted); font-family: 'Prompt', sans-serif; font-weight: 500; margin-bottom: 8px; }
+    .ov-value { font-size: 32px; font-weight: 700; font-family: 'Prompt', sans-serif; line-height: 1; }
+    .ov-card.primary .ov-value { color: var(--navy-900); }
+    .ov-card.success .ov-value { color: var(--success); }
+    .ov-card.warning .ov-value { color: var(--warning); }
+    .ov-value span { font-size: 16px; font-weight: 500; color: var(--gray-400); }
+    .ov-sub { font-size: 14px; color: var(--text-muted); margin-top: 8px; }
+
+    /* progress bar */
+    .prog-bar-wrap { margin-top: 16px; }
+    .prog-bar-top { display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 12px; font-family: 'Prompt', sans-serif; }
+    .prog-bar-top span { color: var(--navy-700); font-weight: 500; }
+    .prog-bar-top strong { color: var(--kmitl-orange); font-size: 18px; }
+    .prog-track { background: var(--gray-200); border-radius: 99px; height: 12px; overflow: hidden; }
+    .prog-fill {
+      height: 100%; border-radius: 99px;
+      background-color: var(--kmitl-orange);
+      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ===== CATEGORIES ===== */
+    .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .cat-grid { grid-template-columns: 1fr; } }
+
+    .cat-card {
+      background: var(--gray-50); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      transition: all 0.2s; cursor: pointer;
+    }
+    .cat-card:hover { border-color: var(--gray-300); background: #fff; box-shadow: var(--shadow-sm); }
+    .cat-card.active { border-color: var(--kmitl-orange); background: #FFF7F5; }
+
+    .cat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .cat-name { font-size: 15px; font-weight: 600; font-family: 'Prompt', sans-serif; color: var(--navy-800); }
+    .cat-credits { font-size: 20px; font-weight: 700; font-family: 'Prompt', sans-serif; color: var(--navy-900); }
+    .cat-credits small { font-size: 14px; font-weight: 400; color: var(--gray-400); }
+
+    .cat-track { background: var(--gray-200); border-radius: 99px; height: 6px; overflow: hidden; margin-bottom: 8px; }
+    .cat-fill { height: 100%; border-radius: 99px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+    .cat-pct { font-size: 13px; color: var(--text-muted); font-family: 'Prompt', sans-serif; font-weight: 500; text-align: right; }
+
+    /* cat detail expand */
+    .cat-detail {
+      display: none; margin-top: 16px; padding-top: 16px;
+      border-top: 1px dashed var(--gray-300);
+    }
+    .cat-detail.show { display: block; }
+    .cat-course-item {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 8px 0; font-size: 14px; border-bottom: 1px solid var(--gray-100);
+    }
+    .cat-course-item:last-child { border-bottom: none; }
+    .cat-course-left { display: flex; flex-direction: column; gap: 4px; }
+    .cat-course-code { font-family: monospace; color: var(--text-muted); font-size: 13px; }
+    .cat-course-name { color: var(--navy-800); font-weight: 500; }
+    .cat-course-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .cat-grade { font-weight: 600; font-size: 14px; font-family: 'Prompt', sans-serif; color: var(--success); }
+    .cat-cr { color: var(--text-muted); font-size: 13px; }
+
+    /* ===== TIMELINE ===== */
+    .timeline-item { margin-bottom: 12px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+    .timeline-header {
+      background: var(--gray-50); 
+      padding: 16px 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.2s;
+    }
+    .timeline-header:hover { background: var(--gray-100); }
+    .timeline-header-left { display: flex; align-items: center; gap: 12px; }
+    .timeline-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--kmitl-orange); flex-shrink: 0;
+    }
+    .timeline-label { font-size: 15px; font-weight: 600; font-family: 'Prompt', sans-serif; color: var(--navy-800); }
+    .timeline-meta { font-size: 14px; color: var(--text-muted); }
+    .timeline-chevron { font-size: 12px; color: var(--gray-400); transition: transform 0.2s; }
+    .timeline-chevron.open { transform: rotate(180deg); }
+
+    .timeline-body { display: none; background: #fff; border-top: 1px solid var(--border); }
+    .timeline-body.show { display: block; }
+    .tl-row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 12px 20px; border-bottom: 1px solid var(--gray-100); font-size: 14px;
+    }
+    .tl-row:last-child { border-bottom: none; }
+    .tl-code { font-family: monospace; font-size: 13px; color: var(--text-muted); width: 80px; flex-shrink: 0; }
+    .tl-name { flex: 1; color: var(--navy-800); font-weight: 500; }
+    .tl-cr { color: var(--text-muted); font-size: 13px; flex-shrink: 0; }
+    .tl-grade { font-weight: 600; font-size: 14px; font-family: 'Prompt', sans-serif; width: 40px; text-align: right; flex-shrink: 0; color: var(--navy-900); }
+
+    /* ===== REMAINING TABLE ===== */
+    .prereq-ok { color: var(--success); font-size: 13px; font-weight: 500; }
+    .prereq-block { color: var(--danger); font-size: 13px; font-weight: 500;}
+
+    /* ===== IN-PROGRESS ===== */
+    .inprog-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+    .inprog-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--warning-light); border: 1px solid rgba(217,119,6,0.3);
+      border-radius: 6px; padding: 8px 16px; font-size: 14px;
+    }
+    .inprog-chip span.code { font-family: monospace; color: var(--warning); font-weight: 600; }
+    .inprog-chip span.name { color: var(--navy-800); font-weight: 500; }
+
+    /* ===== RESET LINK ===== */
+    .reset-link {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-bottom: 24px; font-size: 15px; color: var(--navy-700);
+      cursor: pointer; background: none; border: none; font-weight: 500;
+      font-family: 'Prompt', sans-serif; padding: 0; transition: color 0.2s;
+    }
+    .reset-link:hover { color: var(--kmitl-orange); }
+  </style>
 </head>
 
-<body class="bg-gray-50 min-h-screen text-gray-800">
-    <div class="max-w-4xl mx-auto px-4 py-12">
-        <!-- Header -->
-        <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-indigo-600 mb-2">SmartGrad</h1>
-            <p class="text-gray-500">ตรวจสอบสถานะการเรียน ผลการลงทะเบียน และวิชาคงเหลือเพื่อสำเร็จการศึกษา</p>
-        </header>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-content">
+      <div class="logo-box">K</div>
+      <div class="header-text">
+        <h1>ระบบตรวจสอบสถานะการสำเร็จการศึกษา</h1>
+        <p>หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการคอมพิวเตอร์ สจล.</p>
+      </div>
+    </div>
+  </header>
 
-        <!-- Upload Card -->
-        <div class="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 mb-8">
-            <form action="/" method="POST" enctype="multipart/form-data" class="space-y-6">
+  <div class="container">
+
+    <!-- Step Indicator -->
+    <div class="steps" id="steps">
+      <div class="step-item">
+        <div class="step-dot active" id="step1-dot">1</div>
+        <div class="step-label active" id="step1-lbl">อัปโหลดเอกสาร</div>
+      </div>
+      <div class="step-line" id="line1"></div>
+      <div class="step-item">
+        <div class="step-dot" id="step2-dot">2</div>
+        <div class="step-label" id="step2-lbl">ตรวจสอบข้อมูล</div>
+      </div>
+      <div class="step-line" id="line2"></div>
+      <div class="step-item">
+        <div class="step-dot" id="step3-dot">3</div>
+        <div class="step-label" id="step3-lbl">รายงานผล</div>
+      </div>
+    </div>
+
+    <!-- Step 1: Upload -->
+    <div id="upload-section">
+      <div class="card">
+        <div class="card-title"><span class="icon">📄</span> อัปโหลดใบรายงานผลการศึกษา (Transcript)</div>
+
+        <div id="upload-zone">
+          <input type="file" id="file-input" accept=".pdf" />
+          <span class="upload-icon">📁</span>
+          <strong>ลากไฟล์ PDF วางที่นี่</strong>
+          <p>หรือคลิกเพื่อเลือกไฟล์จากเครื่องของคุณ</p>
+          <label class="btn" id="file-label" for="file-input">เลือกไฟล์ PDF</label>
+        </div>
+
+        <div id="selected-file">
+          <span>📎</span>
+          <span id="file-name-display"></span>
+        </div>
+
+        <div id="upload-error" class="error-box" style="display:none"></div>
+
+        <div class="spinner" id="upload-spinner">
+          <div class="spin"></div>
+          <span>กำลังประมวลผลเอกสาร...</span>
+        </div>
+
+        <button class="btn btn-primary" id="parse-btn" disabled onclick="uploadAndReview()">
+          ดำเนินการตรวจสอบรายวิชา
+        </button>
+
+        <div class="note">
+          <strong>คำแนะนำ:</strong> กรุณาใช้ไฟล์ Transcript (.pdf) ที่ดาวน์โหลดจากระบบสำนักทะเบียนของสถาบันโดยตรง เพื่อความถูกต้องของข้อมูล
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Review & Edit -->
+    <div id="review-section">
+      <button class="reset-link" onclick="resetToUpload()">← กลับไปอัปโหลดเอกสารใหม่</button>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">✏️</span> ตรวจสอบและแก้ไขข้อมูลรายวิชา</div>
+
+        <div class="review-info" id="review-info"></div>
+
+        <p style="font-size:15px;color:var(--text-muted);margin-bottom:16px;">
+          โปรดตรวจสอบความถูกต้องของข้อมูล หากระบบอ่านเกรดคลาดเคลื่อน ท่านสามารถพิมพ์แก้ไขในช่อง "เกรด" ได้โดยตรงก่อนกดยืนยัน
+        </p>
+
+        <div class="table-wrap">
+          <table id="review-table">
+            <thead>
+              <tr>
+                <th>รหัสวิชา</th>
+                <th>ชื่อวิชา</th>
+                <th style="text-align:center; width:80px">หน่วยกิต</th>
+                <th style="text-align:center; width:80px">เกรด</th>
+              </tr>
+            </thead>
+            <tbody id="review-tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="confirm-bar">
+          <p>ข้อมูลถูกต้องและครบถ้วนแล้ว กดปุ่มเพื่อบันทึกและคำนวณผล</p>
+          <div style="display:flex; align-items:center;">
+            <div class="spinner" id="confirm-spinner" style="padding:0;margin-right:16px;display:none;">
+              <div class="spin"></div>
+              <span style="font-size:14px;color:var(--text-muted);margin-left:8px">กำลังคำนวณ...</span>
+            </div>
+            <button class="btn btn-success" onclick="confirmAndCompute()" id="confirm-btn">
+              ยืนยันและคำนวณผล
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Dashboard -->
+    <div id="dashboard-section">
+      <button class="reset-link" onclick="resetToUpload()">← อัปโหลดเอกสารใหม่</button>
+
+      <!-- Overview -->
+      <div class="overview-grid" id="overview-cards"></div>
+
+      <!-- Progress Bar -->
+      <div class="card" id="progress-card"></div>
+
+      <!-- In Progress -->
+      <div class="card" id="inprog-card" style="display:none">
+        <div class="card-title"><span class="icon">⏳</span> รายวิชาที่กำลังศึกษาในภาคเรียนปัจจุบัน</div>
+        <div class="inprog-grid" id="inprog-list"></div>
+      </div>
+
+      <!-- Remaining -->
+      <div class="card" id="remaining-section">
+        <div class="card-title"><span class="icon">📌</span> รายวิชาที่ต้องศึกษาเพิ่มเติมตามโครงสร้างหลักสูตร</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>รหัสวิชา</th>
+                <th>ชื่อวิชา</th>
+                <th style="text-align:center">หน่วยกิต</th>
+                <th>เงื่อนไขรายวิชา</th>
+              </tr>
+            </thead>
+            <tbody id="remaining-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="card">
+        <div class="card-title"><span class="icon">📊</span> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="card">
+        <div class="card-title"><span class="icon">📅</span> ประวัติการศึกษาแยกตามภาคเรียน</div>
+        <div id="timeline-list"></div>
+      </div>
+
+    </div><!-- /dashboard -->
+
+  </div><!-- /container -->
+
+<script>
+  /* ===================================================
+     STATE
+  =================================================== */
+  let parsedCourses = [];    // raw from /review
+  let fileObj = null;
+
+  const NON_PASS = new Set(['F','W','WU','U']);
+  const CAT_COLORS = {
+    ge:'#64748B', core_math:'#0284C7', core_cs:'#E65525',
+    elective:'#D97706', free:'#DB2777', alternative:'#7C3AED'
+  };
+
+  /* ===================================================
+     FILE INPUT
+  =================================================== */
+  const fileInput = document.getElementById('file-input');
+  const uploadZone = document.getElementById('upload-zone');
+
+  fileInput.addEventListener('change', function() {
+    if (this.files[0]) selectFile(this.files[0]);
+  });
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault(); uploadZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type === 'application/pdf') selectFile(f);
+    else showUploadError('กรุณาเลือกไฟล์เอกสารนามสกุล .pdf เท่านั้น');
+  });
+
+  function selectFile(f) {
+    fileObj = f;
+    document.getElementById('file-name-display').textContent = f.name;
+    document.getElementById('selected-file').classList.add('show');
+    document.getElementById('parse-btn').disabled = false;
+    hideUploadError();
+  }
+
+  function showUploadError(msg) {
+    const el = document.getElementById('upload-error');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideUploadError() {
+    document.getElementById('upload-error').style.display = 'none';
+  }
+
+  /* ===================================================
+     STEP 1 → 2: Parse PDF
+  =================================================== */
+  async function uploadAndReview() {
+    if (!fileObj) return;
+    hideUploadError();
+    document.getElementById('parse-btn').disabled = true;
+    document.getElementById('upload-spinner').classList.add('show');
+
+    const fd = new FormData();
+    fd.append('file', fileObj);
+
+    try {
+      const res = await fetch('/review', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showUploadError(data.error || 'เกิดข้อผิดพลาดในการอ่านไฟล์');
+        document.getElementById('parse-btn').disabled = false;
+        return;
+      }
+      parsedCourses = data.courses;
+      renderReviewTable(parsedCourses);
+      goToStep(2);
+    } catch(e) {
+      showUploadError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      document.getElementById('parse-btn').disabled = false;
+    } finally {
+      document.getElementById('upload-spinner').classList.remove('show');
+    }
+  }
+
+  /* ===================================================
+     RENDER REVIEW TABLE
+  =================================================== */
+  function renderReviewTable(courses) {
+    const tbody = document.getElementById('review-tbody');
+    tbody.innerHTML = '';
+
+    // group by semester
+    const groups = {};
+    for (const c of courses) {
+      const label = c.semester && c.academic_year
+        ? `ภาคเรียนที่ ${c.semester} ปีการศึกษา ${c.academic_year}`
+        : 'ไม่ระบุภาคการศึกษา';
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(c);
+    }
+
+    let total = 0, passedCredit = 0;
+
+    for (const [label, rows] of Object.entries(groups)) {
+      // semester header row
+      const hr = document.createElement('tr');
+      hr.className = 'sem-header';
+      hr.innerHTML = `<td colspan="4">📅 ${label}</td>`;
+      tbody.appendChild(hr);
+
+      for (const c of rows) {
+        total++;
+        const isCurrent = c.is_current;
+        const grade = c.grade || '';
+        const isFail = NON_PASS.has(grade.toUpperCase());
+        const isPass = grade && !isFail;
+        if (isPass) passedCredit += c.credit;
+
+        const tr = document.createElement('tr');
+        tr.className = 'review-row';
+        tr.dataset.idx = parsedCourses.indexOf(c);
+        tr.innerHTML = `
+          <td>
+            <input class="grade-input code-input" type="text" value="${c.code}" style="width:100px; text-align:left; font-family:monospace;" />
+          </td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input class="grade-input name-input" type="text" value="${c.name_en}" style="width:100%; text-align:left;" />
+              ${isCurrent ? '<span class="badge-current" style="flex-shrink:0;">กำลังเรียน</span>' : ''}
+            </div>
+          </td>
+          <td style="text-align:center">
+            <input class="grade-input credit-input" type="text" value="${c.credit}" style="width:50px;" />
+          </td>
+          <td style="text-align:center">
+            ${isCurrent
+              ? '<span style="color:var(--gray-400);font-size:14px">–</span>'
+              : `<input class="grade-input grade-val-input" type="text" value="${grade}"
+                   data-original="${grade}"
+                   oninput="onGradeChange(this)"
+                   placeholder="–">`
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // summary badges
+    document.getElementById('review-info').innerHTML = `
+      <div class="review-badge">จำนวนรายวิชาที่พบ: <strong>${courses.length}</strong> วิชา</div>
+      <div class="review-badge">หน่วยกิตที่ผ่านการประเมิน: <strong>${passedCredit}</strong> หน่วยกิต</div>
+      <div class="review-badge">ชื่อไฟล์เอกสาร: <strong style="color:var(--navy-700)">${fileObj.name}</strong></div>
+    `;
+  }
+
+  function onGradeChange(input) {
+    const val = input.value.trim().toUpperCase();
+
+    const original = input.dataset.original;
+    if (val !== original) {
+      input.classList.add('overridden');
+    } else {
+      input.classList.remove('overridden');
+    }
+  }
+
+  /* ===================================================
+     STEP 2 → 3: Confirm & Compute
+  =================================================== */
+  async function confirmAndCompute() {
+    document.getElementById('confirm-btn').disabled = true;
+    document.getElementById('confirm-spinner').style.display = 'inline-flex';
+
+    // sync values from inputs back to parsedCourses
+    document.querySelectorAll('.review-row').forEach(tr => {
+      const idx = parseInt(tr.dataset.idx);
+      const codeInp = tr.querySelector('.code-input');
+      const nameInp = tr.querySelector('.name-input');
+      const creditInp = tr.querySelector('.credit-input');
+      const gradeInp = tr.querySelector('.grade-val-input');
+
+      if(codeInp) parsedCourses[idx].code = codeInp.value.trim();
+      if(nameInp) parsedCourses[idx].name_en = nameInp.value.trim();
+      if(creditInp) parsedCourses[idx].credit = parseFloat(creditInp.value.trim()) || 0;
+      if(gradeInp) parsedCourses[idx].grade = gradeInp.value.trim().toUpperCase() || null;
+    });
+
+    try {
+      const res = await fetch('/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courses: parsedCourses }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        alert('เกิดข้อผิดพลาดในการประมวลผล: ' + (data.error || 'ไม่ทราบสาเหตุ'));
+        return;
+      }
+      renderDashboard(data);
+      goToStep(3);
+    } catch(e) {
+      alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+    } finally {
+      document.getElementById('confirm-btn').disabled = false;
+      document.getElementById('confirm-spinner').style.display = 'none';
+    }
+  }
+
+  /* ===================================================
+     RENDER DASHBOARD
+  =================================================== */
+  function renderDashboard(d) {
+    // Overview cards
+    document.getElementById('overview-cards').innerHTML = `
+      <div class="ov-card primary">
+        <div class="ov-label">จำนวนรายวิชาที่สำเร็จ</div>
+        <div class="ov-value">${d.completed_courses} <span>/ ${d.total_courses}</span></div>
+        <div class="ov-sub">รายวิชา</div>
+      </div>
+      <div class="ov-card success">
+        <div class="ov-label">หน่วยกิตสะสมทั้งหมด</div>
+        <div class="ov-value">${d.completed_credits} <span>/ ${d.total_credits}</span></div>
+        <div class="ov-sub">หน่วยกิต</div>
+      </div>
+      <div class="ov-card warning">
+        <div class="ov-label">รายวิชาคงเหลือ</div>
+        <div class="ov-value">${d.remaining_courses_count}</div>
+        <div class="ov-sub">รายวิชา</div>
+      </div>
+    `;
+
+    // Progress bar
+    document.getElementById('progress-card').innerHTML = `
+      <div class="card-title"><span class="icon">📈</span> ภาพรวมความก้าวหน้าการศึกษา</div>
+      <div class="prog-bar-wrap">
+        <div class="prog-bar-top">
+          <span>ความคืบหน้าคิดเป็นเปอร์เซ็นต์ (อ้างอิงจาก ${d.total_credits} หน่วยกิต)</span>
+          <strong>${d.progress_percent}%</strong>
+        </div>
+        <div class="prog-track">
+          <div class="prog-fill" style="width: 0%"></div>
+        </div>
+      </div>
+    `;
+    // animate progress
+    setTimeout(() => {
+      const fill = document.querySelector('.prog-fill');
+      if (fill) fill.style.width = d.progress_percent + '%';
+    }, 100);
+
+    // In-progress
+    if (d.in_progress && d.in_progress.length > 0) {
+      document.getElementById('inprog-card').style.display = 'block';
+      document.getElementById('inprog-list').innerHTML = d.in_progress.map(c => `
+        <div class="inprog-chip">
+          <span class="code">${c.code}</span>
+          <span class="name">${c.name_en}</span>
+        </div>
+      `).join('');
+    } else {
+      document.getElementById('inprog-card').style.display = 'none';
+    }
+
+    // Categories
+    document.getElementById('cat-grid').innerHTML = d.categories.map(cat => {
+      const c = CAT_COLORS[cat.key] || '#94a3b8';
+      const isComplete = cat.earned_credits >= cat.target_credits;
+      
+      let html = `
+        <div class="cat-card" onclick="toggleCat('${cat.key}')" id="cat-card-${cat.key}">
+          <div class="cat-header">
+            <div class="cat-name">${cat.label}</div>
+            <div class="cat-credits" style="color: ${isComplete ? 'var(--success)' : 'var(--navy-900)'}">
+              ${cat.earned_credits} <small>/ ${cat.target_credits}</small>
+            </div>
+          </div>
+          <div class="cat-track">
+            <div class="cat-fill" style="width: 0%; background-color: ${c}" data-w="${cat.percent}%"></div>
+          </div>
+          <div class="cat-pct">${cat.percent}% ${isComplete ? '✅' : ''}</div>
+          <div class="cat-detail" id="cat-detail-${cat.key}">
+      `;
+      
+      if (cat.courses.length === 0) {
+        html += `<div style="color:var(--text-muted);font-size:13px;padding:8px 0;text-align:center;">ไม่มีข้อมูลรายวิชาในหมวดนี้</div>`;
+      } else {
+        cat.courses.forEach(crs => {
+          html += `
+            <div class="cat-course-item">
+              <div class="cat-course-left">
+                <div class="cat-course-code">${crs.code}</div>
+                <div class="cat-course-name">${crs.name_en}</div>
+              </div>
+              <div class="cat-course-right">
+                <span class="cat-grade">${crs.grade}</span>
+                <span class="cat-cr">${crs.credit} นก.</span>
+              </div>
+            </div>
+          `;
+        });
+      }
+      html += `</div></div>`;
+      return html;
+    }).join('');
+
+    // animate category bars
+    setTimeout(() => {
+      document.querySelectorAll('.cat-fill').forEach(el => {
+        el.style.width = el.getAttribute('data-w');
+      });
+    }, 100);
+
+    // Timeline
+    if (d.timeline.length === 0) {
+      document.getElementById('timeline-list').innerHTML = '<p style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px;">ไม่พบประวัติการศึกษา</p>';
+    } else {
+      document.getElementById('timeline-list').innerHTML = d.timeline.map((tl, i) => {
+        let totalCr = tl.courses.reduce((sum, c) => sum + (c.credit || 0), 0);
+        return `
+          <div class="timeline-item">
+            <div class="timeline-header" onclick="toggleTl(${i})">
+              <div class="timeline-header-left">
+                <div class="timeline-dot"></div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">อัปโหลด Transcript (.pdf)
-                        เพื่อดูผลวิเคราะห์</label>
-                    <input type="file" name="file" accept=".pdf" required
-                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-gray-200 rounded-xl p-2" />
+                  <div class="timeline-label">${tl.label}</div>
+                  <div class="timeline-meta">${tl.courses.length} รายวิชา | ${totalCr} หน่วยกิต</div>
                 </div>
-                <button type="submit"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl transition duration-200">
-                    ประมวลผลและแสดงแดชบอร์ด
-                </button>
-            </form>
-            <div
-                class="mt-4 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 leading-relaxed">
-                <strong>*หมายเหตุ:</strong> ระบบนี้เป็นเพียงเครื่องมือช่วยตรวจสอบความคืบหน้าเบื้องต้นเท่านั้น
-                โปรดใช้ไฟล์ทรานสคริปต์ที่ออกจากสถาบันโดยไม่มีการดัดแปลงใด ๆ
-                การแก้ไขโครงสร้างหรือข้อความในไฟล์อาจทำให้การจับคู่รายวิชาและการคำนวณความคืบหน้าคลาดเคลื่อนจากความเป็นจริง
+              </div>
+              <div class="timeline-chevron" id="tl-chev-${i}">▼</div>
             </div>
+            <div class="timeline-body" id="tl-body-${i}">
+              ${tl.courses.map(c => `
+                <div class="tl-row">
+                  <div class="tl-code">${c.code}</div>
+                  <div class="tl-name">${c.name_en}</div>
+                  <div class="tl-cr">${c.credit} นก.</div>
+                  <div class="tl-grade">${c.grade}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
-            {% if error %}
-            <div class="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">{{ error }}</div>
-            {% endif %}
-        </div>
-        {% if error %}
-        <div class="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">{{ error }}</div>
-        {% endif %}
-    </div>
+    // Remaining table
+    if (d.remaining_list.length === 0) {
+      document.getElementById('remaining-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--success);padding:32px;">ยินดีด้วย! คุณผ่านรายวิชาบังคับตามหลักสูตรครบถ้วนแล้ว 🎉</td></tr>`;
+    } else {
+      document.getElementById('remaining-tbody').innerHTML = d.remaining_list.map(c => {
+        const isBlock = c.prereq_status.includes('ติดวิชา');
+        return `
+          <tr>
+            <td class="code-cell">${c.code}</td>
+            <td style="font-weight:500; color:var(--navy-800)">${c.name_en}</td>
+            <td class="credit-cell">${c.credit}</td>
+            <td>
+              ${isBlock
+                ? `<span class="prereq-block">${c.prereq_status}</span>`
+                : `<span class="prereq-ok">พร้อมลงทะเบียนได้</span>`
+              }
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
 
-    <!-- Dashboard Section -->
-    {% if dashboard %}
-    <div class="space-y-8 mb-8">
-        <!-- Progress Cards Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center">
-                <span class="text-sm text-gray-400 block mb-1">วิชาที่ผ่านแล้ว</span>
-                <span class="text-3xl font-bold text-indigo-600">{{ dashboard.completed_courses }} / {{
-                    dashboard.total_courses }} ตัว</span>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center">
-                <span class="text-sm text-gray-400 block mb-1">หน่วยกิตสะสม</span>
-                <span class="text-3xl font-bold text-green-600">{{ dashboard.completed_credits }} / {{
-                    dashboard.total_credits }} CR</span>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm text-center">
-                <span class="text-sm text-gray-400 block mb-1">ยังเหลือที่ต้องเรียนอีก</span>
-                <span class="text-3xl font-bold text-red-500">{{ dashboard.remaining_courses_count }} ตัว</span>
-            </div>
-        </div>
+  /* ===================================================
+     TOGGLES
+  =================================================== */
+  function toggleCat(key) {
+    const el = document.getElementById(`cat-detail-${key}`);
+    const card = document.getElementById(`cat-card-${key}`);
+    if (el.classList.contains('show')) {
+      el.classList.remove('show');
+      card.classList.remove('active');
+    } else {
+      el.classList.add('show');
+      card.classList.add('active');
+    }
+  }
 
-        <!-- Progress Bar -->
-        <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-            <div class="flex justify-between items-center mb-2">
-                <h4 class="font-semibold text-gray-700">ความคืบหน้าหลักสูตร</h4>
-                <span class="text-sm font-bold text-indigo-600">{{ dashboard.progress_percent }}%</span>
-            </div>
-            <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
-                <div class="bg-indigo-600 h-4 rounded-full transition-all duration-500"
-                    style="width: {{ dashboard.progress_percent }}%"></div>
-            </div>
-        </div>
+  function toggleTl(idx) {
+    const body = document.getElementById(`tl-body-${idx}`);
+    const chev = document.getElementById(`tl-chev-${idx}`);
+    if (body.classList.contains('show')) {
+      body.classList.remove('show');
+      chev.classList.remove('open');
+    } else {
+      body.classList.add('show');
+      chev.classList.add('open');
+    }
+  }
 
-        <!-- Remaining Courses List -->
-        <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 class="font-semibold text-lg text-gray-700 mb-4 pb-2 border-b border-gray-100">
-                รายวิชาที่ต้องลงเรียนเพิ่มเพื่อจบการศึกษา</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left text-gray-500">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3">รหัสวิชา</th>
-                            <th class="px-6 py-3">ชื่อวิชา</th>
-                            <th class="px-6 py-3">หน่วยกิต</th>
-                            <th class="px-6 py-3">เงื่อนไข Prerequisite</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for course in dashboard.remaining_list %}
-                        <tr class="bg-white border-b hover:bg-gray-50">
-                            <td class="px-6 py-4 font-mono font-medium text-gray-900">{{ course.code }}</td>
-                            <td class="px-6 py-4">{{ course.name_th }}</td>
-                            <td class="px-6 py-4">{{ course.credit }}</td>
-                            <td class="px-6 py-4">
-                                {% if 'ติดวิชา' in course.prereq_status %}
-                                <span class="text-red-500 font-medium text-xs bg-red-50 px-2.5 py-1 rounded-full">{{
-                                    course.prereq_status }}</span>
-                                {% else %}
-                                <span
-                                    class="text-green-600 font-medium text-xs bg-green-50 px-2.5 py-1 rounded-full">พร้อมลงเรียนได้</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    </div>
+  /* ===================================================
+     NAVIGATION
+  =================================================== */
+  function goToStep(step) {
+    document.getElementById('upload-section').style.display = (step === 1) ? 'block' : 'none';
+    document.getElementById('review-section').style.display = (step === 2) ? 'block' : 'none';
+    document.getElementById('dashboard-section').style.display = (step === 3) ? 'block' : 'none';
+
+    // update dots
+    [1,2,3].forEach(i => {
+      const dot = document.getElementById(`step${i}-dot`);
+      const lbl = document.getElementById(`step${i}-lbl`);
+      const line = document.getElementById(`line${i}`);
+      
+      if (i < step) {
+        dot.className = 'step-dot done'; dot.innerHTML = '✓';
+        lbl.className = 'step-label active';
+        if (line) line.className = 'step-line done';
+      } else if (i === step) {
+        dot.className = 'step-dot active'; dot.innerHTML = i;
+        lbl.className = 'step-label active';
+        if (line) line.className = 'step-line';
+      } else {
+        dot.className = 'step-dot'; dot.innerHTML = i;
+        lbl.className = 'step-label';
+        if (line) line.className = 'step-line';
+      }
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetToUpload() {
+    fileObj = null;
+    parsedCourses = [];
+    fileInput.value = '';
+    document.getElementById('file-name-display').textContent = '';
+    document.getElementById('selected-file').classList.remove('show');
+    document.getElementById('parse-btn').disabled = true;
+    hideUploadError();
+    goToStep(1);
+  }
+
+</script>
 </body>
-
 </html>

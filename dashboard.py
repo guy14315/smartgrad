@@ -192,11 +192,23 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
     in_progress_list = []
     for c in transcript_courses:
         if c.get("is_current"):
+            # Find courses that require this course as a prerequisite
+            impacts = []
+            for curr_course in curriculum:
+                if c["code"] in curr_course.get("prereqs", []):
+                    impacts.append({
+                        "code": curr_course["code"],
+                        "name_en": curr_course.get("name_en") or curr_course.get("name_th", ""),
+                        "name_th": curr_course.get("name_th", "")
+                    })
+
             in_progress_list.append({
                 "code": c["code"],
                 "name_en": c.get("name_en", c.get("name_th", "")),
+                "name_th": c.get("name_th", ""),
                 "credit": c.get("credit", 0),
                 "category": _classify_course(c["code"], curriculum_codes),
+                "impacts": impacts
             })
 
     return {

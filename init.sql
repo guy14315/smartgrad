@@ -161,20 +161,12 @@ INSERT OR IGNORE INTO courses (course_code, curriculum_id, course_name_th, cours
 -- ---------------------------------------------------------------------------
 
 INSERT OR IGNORE INTO prerequisites (course_code, prereq_code) VALUES
-('05506004', '05506003'),
-('90644008', '90644007'),
-('05506006', '05506004'),
-('05506007', '05506008'),
-('05506002', '05506233'),
-('05506236', '05506006'),
-('05506113', '05506004'),
-('05506014', '05506250'),
-('05506210', '05506006'),
-('05506017', '05506113'),
-('05506016', '05506008'),
-('05506237', '05506004'),
-('05506098', '05506017'),
-('05506099', '05506098');
+('05506004', '05506003'), -- Object-Oriented Programming requires Programming Fundamentals
+('05506099', '05506098'), -- Special Problem 2 requires Special Problem 1
+('05506227', '05506003'), -- Advanced Programming requires Programming Fundamentals
+('05506240', '05506012'), -- Data Engineering requires Database Systems
+('05506241', '05506003'), -- Data Science Track requires Programming Fundamentals
+('05506242', '05506004'); -- Full-Stack Track requires Object-Oriented Programming
 
 -- ---------------------------------------------------------------------------
 -- 4. DEMO ADVISOR ACCOUNT

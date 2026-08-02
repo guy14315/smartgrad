@@ -185,17 +185,13 @@ async def upload_transcript(
             select(Advisor).where(Advisor.cohort_year == admission_year)
         )
         advisor = advisor_result.scalars().first()
-        if not advisor:
-            raise HTTPException(
-                status_code=400,
-                detail=f"ยังไม่ได้กำหนดอาจารย์ที่ปรึกษาสำหรับนักศึกษาปีการศึกษา {admission_year}",
-            )
+        
         student = Student(
             student_id=student_id,
             name=student_name.strip() or f"นักศึกษา {student_id}",
             email=f"{student_id}@kmitl.ac.th",
             admission_year=admission_year,
-            advisor_id=advisor.advisor_id,
+            advisor_id=advisor.advisor_id if advisor else None,
             curriculum_id="CS2564",
         )
         db.add(student)

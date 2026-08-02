@@ -634,18 +634,18 @@
     <!-- Step 1: Upload -->
     <div id="upload-section">
       <div class="card">
-        <div class="card-title"><span class="icon">📄</span> อัปโหลดใบรายงานผลการศึกษา (Transcript)</div>
+        <div class="card-title"> อัปโหลดใบรายงานผลการศึกษา (Transcript)</div>
 
         <div id="upload-zone">
           <input type="file" id="file-input" accept=".pdf" />
-          <span class="upload-icon">📁</span>
+          <span class="upload-icon"></span>
           <strong>ลากไฟล์ PDF วางที่นี่</strong>
           <p>หรือคลิกเพื่อเลือกไฟล์จากเครื่องของคุณ</p>
           <label class="btn" id="file-label" for="file-input">เลือกไฟล์ PDF</label>
         </div>
 
         <div id="selected-file">
-          <span>📎</span>
+          <span></span>
           <span id="file-name-display"></span>
         </div>
 
@@ -671,7 +671,7 @@
       <button class="reset-link" onclick="resetToUpload()">← กลับไปอัปโหลดเอกสารใหม่</button>
 
       <div class="card">
-        <div class="card-title"><span class="icon">✏️</span> ตรวจสอบและแก้ไขข้อมูลรายวิชา</div>
+        <div class="card-title"><span class="icon">✏</span> ตรวจสอบและแก้ไขข้อมูลรายวิชา</div>
 
         <div class="review-info" id="review-info"></div>
 
@@ -719,9 +719,15 @@
       <!-- Progress Bar -->
       <div class="card" id="progress-card"></div>
 
+      <!-- Categories -->
+      <div class="card">
+        <div class="card-title"> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+
       <!-- Study Plan Button & Section -->
       <div class="card">
-        <div class="card-title"><span class="icon">📋</span> วางแผนการเรียน</div>
+        <div class="card-title"> วางแผนการเรียน</div>
         <p style="font-size:15px;color:var(--text-muted);margin-bottom:20px;">
           ระบบจะวิเคราะห์วิชาที่เหลือและแนะนำแผนการลงทะเบียนเรียนในแต่ละเทอมจนจบหลักสูตร
         </p>
@@ -731,7 +737,7 @@
             <button class="plan-toggle-btn" data-plan="coop" onclick="setPlanType('coop')">แผนสหกิจศึกษา</button>
           </div>
           <button class="btn-plan" id="plan-btn" onclick="generatePlan()">
-            📋 สร้างแผนการเรียน
+             สร้างแผนการเรียน
           </button>
           <div class="spinner" id="plan-spinner" style="padding:0;">
             <div class="spin"></div>
@@ -740,21 +746,20 @@
         </div>
       </div>
 
-      <!-- Categories -->
-      <div class="card">
-        <div class="card-title"><span class="icon">📊</span> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
-        <div class="cat-grid" id="cat-grid"></div>
-      </div>
-
       <!-- In Progress -->
       <div class="card" id="inprog-card" style="display:none">
-        <div class="card-title"><span class="icon">⏳</span> รายวิชาที่กำลังศึกษาในภาคเรียนปัจจุบัน</div>
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding-bottom:12px; border-bottom:1px solid var(--gray-100);">
+          <div> รายวิชาที่กำลังศึกษาในภาคเรียนปัจจุบัน</div>
+          <button onclick="openWithdrawModal()" style="font-size: 14px; padding: 6px 16px; border: 1px solid var(--danger); color: var(--danger); background: transparent; border-radius: var(--radius); cursor: pointer; font-family:'Sarabun', sans-serif; font-weight:600; transition:all 0.2s;">
+            จำลองการถอนรายวิชา (Withdraw)
+          </button>
+        </div>
         <div class="inprog-grid" id="inprog-list"></div>
       </div>
 
       <!-- Remaining -->
       <div class="card" id="remaining-section">
-        <div class="card-title"><span class="icon">📌</span> รายวิชาที่ต้องศึกษาเพิ่มเติมตามโครงสร้างหลักสูตร</div>
+        <div class="card-title"> รายวิชาที่ต้องศึกษาเพิ่มเติมตามโครงสร้างหลักสูตร</div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -772,7 +777,7 @@
 
       <!-- Timeline -->
       <div class="card">
-        <div class="card-title"><span class="icon">📅</span> ประวัติการศึกษาแยกตามภาคเรียน</div>
+        <div class="card-title"> ประวัติการศึกษาแยกตามภาคเรียน</div>
         <div id="timeline-list"></div>
       </div>
 
@@ -782,7 +787,7 @@
         <div class="card" style="margin-bottom:24px; padding:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
           <div>
             <button class="reset-link" onclick="closePlan()" style="margin-bottom:12px;">← กลับไปหน้า Dashboard</button>
-            <h2 style="margin:0; font-family:'Prompt'; font-size:22px; color:var(--navy-800);"><span class="icon">📋</span> แผนการเรียนที่แนะนำ</h2>
+            <h2 style="margin:0; font-family:'Prompt'; font-size:22px; color:var(--navy-800);"> แผนการเรียนที่แนะนำ</h2>
           </div>
           <div class="plan-toggle">
             <button class="plan-toggle-btn active" data-plan="normal" onclick="setPlanType('normal')">แผนปกติ (ปัญหาพิเศษ)</button>
@@ -793,12 +798,12 @@
         <div id="plan-warnings"></div>
         <div id="plan-summary"></div>
         <div class="card">
-          <div class="card-title"><span class="icon">🗓️</span> แผนการเรียนรายเทอม</div>
+          <div class="card-title"> แผนการเรียนรายเทอม</div>
           <div id="plan-terms-list"></div>
         </div>
         <div id="plan-suggestions" style="display:none">
           <div class="card">
-            <div class="card-title"><span class="icon">💡</span> คำแนะนำ</div>
+            <div class="card-title"> คำแนะนำ</div>
             <ul class="plan-suggestion-list" id="plan-suggestions-list"></ul>
           </div>
         </div>
@@ -927,7 +932,7 @@
       // semester header row
       const hr = document.createElement('tr');
       hr.className = 'sem-header';
-      hr.innerHTML = `<td colspan="4">📅 ${label}</td>`;
+      hr.innerHTML = `<td colspan="4"> ${label}</td>`;
       tbody.appendChild(hr);
 
       for (const c of rows) {
@@ -1033,6 +1038,7 @@
      RENDER DASHBOARD
   =================================================== */
   function renderDashboard(d) {
+    window.dashboardData = d;
     // Overview cards
     document.getElementById('overview-cards').innerHTML = `
       <div class="ov-card success">
@@ -1044,7 +1050,7 @@
 
     // Progress bar
     document.getElementById('progress-card').innerHTML = `
-      <div class="card-title"><span class="icon">📈</span> ภาพรวมความก้าวหน้าการศึกษา</div>
+      <div class="card-title"> ภาพรวมความก้าวหน้าการศึกษา</div>
       <div class="prog-bar-wrap">
         <div class="prog-bar-top">
           <span>ความคืบหน้าคิดเป็นเปอร์เซ็นต์ (อ้างอิงจาก ${d.total_credits} หน่วยกิต)</span>
@@ -1090,7 +1096,7 @@
           <div class="cat-track">
             <div class="cat-fill" style="width: 0%; background-color: ${c}" data-w="${cat.percent}%"></div>
           </div>
-          <div class="cat-pct">${cat.percent}% ${isComplete ? '✅' : ''}</div>
+          <div class="cat-pct">${cat.percent}% ${isComplete ? '' : ''}</div>
           <div class="cat-detail" id="cat-detail-${cat.key}">
       `;
       
@@ -1158,7 +1164,7 @@
 
     // Remaining table
     if (d.remaining_list.length === 0) {
-      document.getElementById('remaining-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--success);padding:32px;">ยินดีด้วย! คุณผ่านรายวิชาบังคับตามหลักสูตรครบถ้วนแล้ว 🎉</td></tr>`;
+      document.getElementById('remaining-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--success);padding:32px;">ยินดีด้วย! คุณผ่านรายวิชาบังคับตามหลักสูตรครบถ้วนแล้ว </td></tr>`;
     } else {
       document.getElementById('remaining-tbody').innerHTML = d.remaining_list.map(c => {
         const isBlock = c.prereq_status.includes('ติดวิชา');
@@ -1313,7 +1319,7 @@
         const isDanger = w.includes('มากกว่า 4 ปี') || w.includes('ไม่สามารถ');
         return `
           <div class="plan-alert ${isDanger ? 'danger' : 'warning'}">
-            <span class="plan-alert-icon">${isDanger ? '🚨' : '🚨'}</span>
+            <span class="plan-alert-icon">${isDanger ? '' : ''}</span>
             <div class="plan-alert-content">${w}</div>
           </div>
         `;
@@ -1321,7 +1327,7 @@
     } else {
       warningsEl.innerHTML = `
         <div class="plan-alert success">
-          <span class="plan-alert-icon">✅</span>
+          <span class="plan-alert-icon"></span>
           <div class="plan-alert-content">
             <div class="plan-alert-title">สามารถจบการศึกษาได้ตามแผน 4 ปี</div>
             หน่วยกิตที่เหลือสามารถจัดลงในเทอมที่เหลือได้
@@ -1371,7 +1377,7 @@
             <div class="plan-course-code">${c.code}</div>
             <div class="plan-course-name">${c.name_en || c.name_th}</div>
             <span class="plan-badge ${c.is_deferred ? 'deferred' : 'required'}">
-              ${c.is_deferred ? 'เลื่อนมา' : 'บังคับ'}
+              ${c.is_deferred ? 'เลือกลง' : 'บังคับ'}
             </span>
             <div class="plan-course-credit">${c.credit} นก.</div>
           </div>
@@ -1414,7 +1420,7 @@
     const sugListEl = document.getElementById('plan-suggestions-list');
     if (d.suggestions.length > 0) {
       sugEl.style.display = 'block';
-      sugListEl.innerHTML = d.suggestions.map(s => `<li><span>💡</span> ${s}</li>`).join('');
+      sugListEl.innerHTML = d.suggestions.map(s => `<li><span></span> ${s}</li>`).join('');
     } else {
       sugEl.style.display = 'none';
     }
@@ -1432,6 +1438,115 @@
     }
   }
 
+</script>
+<!-- Withdrawal Impact Modal -->
+<style>
+  .withdraw-modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    display: none; justify-content: center; align-items: center;
+    z-index: 1000; padding: 20px; backdrop-filter: blur(4px);
+  }
+  .withdraw-modal-overlay.show { display: flex; }
+  .withdraw-modal {
+    background: #fff; border-radius: var(--radius); width: 100%; max-width: 600px;
+    box-shadow: var(--shadow-md); display: flex; flex-direction: column;
+    max-height: 90vh;
+  }
+  .withdraw-modal-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .withdraw-modal-title { font-family: 'Prompt', sans-serif; font-size: 18px; font-weight: 600; color: var(--navy-900); }
+  .withdraw-close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-500); }
+  .withdraw-modal-body { padding: 24px; overflow-y: auto; }
+  .course-list-btn {
+    width: 100%; text-align: left; padding: 12px 16px; border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 8px; cursor: pointer; background: #fff;
+    transition: all 0.2s; font-family: 'Sarabun', sans-serif;
+  }
+  .course-list-btn:hover { border-color: var(--danger); background: var(--danger-light); }
+  .impact-report { margin-top: 24px; display: none; }
+  .impact-alert {
+    background: var(--warning-light); border-left: 4px solid var(--warning);
+    padding: 16px; border-radius: 0 var(--radius) var(--radius) 0; color: var(--navy-900);
+  }
+  .impact-safe {
+    background: var(--success-light); border-left: 4px solid var(--success);
+    padding: 16px; border-radius: 0 var(--radius) var(--radius) 0; color: var(--navy-900);
+  }
+  .impact-course-list { margin-top: 12px; padding-left: 20px; }
+  .impact-course-list li { margin-bottom: 4px; }
+</style>
+
+<div class="withdraw-modal-overlay" id="withdraw-modal">
+  <div class="withdraw-modal">
+    <div class="withdraw-modal-header">
+      <div class="withdraw-modal-title"> จำลองผลกระทบการถอนรายวิชา (Withdraw)</div>
+      <button class="withdraw-close-btn" onclick="closeWithdrawModal()">&times;</button>
+    </div>
+    <div class="withdraw-modal-body">
+      <p style="margin-bottom: 16px; color: var(--text-muted);">เลือกรายวิชาที่กำลังศึกษาเพื่อดูผลกระทบหากท่านตัดสินใจถอนรายวิชานี้ (W)</p>
+      <div id="withdraw-course-list"></div>
+      <div id="withdraw-impact-result" class="impact-report"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openWithdrawModal() {
+    const d = window.dashboardData;
+    if (!d || !d.in_progress || d.in_progress.length === 0) {
+      alert("ไม่มีรายวิชาที่กำลังศึกษาในภาคเรียนปัจจุบัน");
+      return;
+    }
+    const listEl = document.getElementById('withdraw-course-list');
+    listEl.innerHTML = d.in_progress.map((c, i) => `
+      <button class="course-list-btn" onclick="selectWithdrawCourse(${i})">
+        <strong>${c.code}</strong> - ${c.name_en || c.name_th} (${c.credit} นก.)
+      </button>
+    `).join('');
+    document.getElementById('withdraw-impact-result').style.display = 'none';
+    document.getElementById('withdraw-modal').classList.add('show');
+  }
+
+  function closeWithdrawModal() {
+    document.getElementById('withdraw-modal').classList.remove('show');
+  }
+
+  function selectWithdrawCourse(idx) {
+    const d = window.dashboardData;
+    const course = d.in_progress[idx];
+    const resEl = document.getElementById('withdraw-impact-result');
+    
+    let html = `<h4 style="margin-bottom:12px; font-family:'Prompt', sans-serif;">ผลกระทบการถอนวิชา ${course.code}</h4>`;
+    
+    if (course.impacts && course.impacts.length > 0) {
+      html += `
+        <div class="impact-alert">
+          <strong> คำเตือน:</strong> วิชานี้เป็นวิชาบังคับก่อน (Prerequisite) ของรายวิชาต่อไปนี้:
+          <ul class="impact-course-list">
+            ${course.impacts.map(imp => `<li><strong>${imp.code}</strong> - ${imp.name_en || imp.name_th}</li>`).join('')}
+          </ul>
+          <div style="margin-top: 12px; font-size: 14px;">
+            หากท่านถอนวิชานี้ ท่านจะไม่สามารถลงทะเบียนวิชาเหล่านี้ได้จนกว่าจะสอบผ่านวิชานี้ในภาคการศึกษาถัดไป ซึ่งอาจส่งผลให้จบการศึกษาล่าช้า
+          </div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="impact-safe">
+          <strong> ไม่พบผลกระทบต่อเนื่อง:</strong> วิชานี้ไม่ได้เป็นวิชาบังคับก่อน (Prerequisite) ของรายวิชาอื่นในโครงสร้างหลักสูตร 
+          <div style="margin-top: 8px; font-size: 14px;">
+            ท่านสามารถถอนวิชานี้ได้โดยไม่ปิดกั้นการลงทะเบียนวิชาอื่น อย่างไรก็ตามกรุณาตรวจสอบหน่วยกิตรวมและแผนการศึกษาของท่านอีกครั้ง
+          </div>
+        </div>
+      `;
+    }
+    
+    resEl.innerHTML = html;
+    resEl.style.display = 'block';
+  }
 </script>
 </body>
 </html>

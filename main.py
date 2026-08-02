@@ -123,6 +123,11 @@ def advisor_page(request: Request):
     return templates.TemplateResponse(request, "advisor.html")
 
 
+@app.get("/search", include_in_schema=False)
+def search_page(request: Request):
+    return templates.TemplateResponse(request, "search.html")
+
+
 @app.post("/review", include_in_schema=False)
 async def review_transcript(request: Request, file: UploadFile = File(...)):
     """Step 1: Parse PDF → return JSON list of courses for user to review/edit."""

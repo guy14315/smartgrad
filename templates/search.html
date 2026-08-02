@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ค้นหารายวิชา - SmartGrad</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <style>
+    :root {
+      --kmitl-orange: #E65525;
+      --kmitl-orange-light: #F0764D;
+      --kmitl-orange-dark: #C44319;
+      --navy-900: #0F172A;
+      --navy-800: #1E293B;
+      --navy-700: #334155;
+      --gray-50: #F8FAFC;
+      --gray-100: #F1F5F9;
+      --gray-200: #E2E8F0;
+      --gray-300: #CBD5E1;
+      --gray-500: #64748B;
+      
+      --bg: var(--gray-50);
+      --card-bg: #FFFFFF;
+      --text-main: var(--navy-800);
+      --text-muted: var(--gray-500);
+      --border: var(--gray-200);
+      
+      --radius: 8px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    h1, h2, h3, h4, h5, h6, .font-prompt {
+      font-family: 'Prompt', sans-serif;
+    }
+
+    .container { max-width: 1024px; margin: 0 auto; padding: 0 24px 40px; }
+
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 2px solid var(--kmitl-orange);
+      padding: 24px 0;
+      margin-bottom: 40px;
+      box-shadow: var(--shadow-sm);
+    }
+    .header-content {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-box {
+      width: 56px;
+      height: 56px;
+      background-color: var(--kmitl-orange);
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: bold;
+      font-family: 'Prompt', sans-serif;
+    }
+    .header-text h1 {
+      font-size: 20px;
+      color: var(--navy-900);
+      margin-bottom: 4px;
+    }
+    .header-text p {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    .back-link {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-bottom: 24px; font-size: 15px; color: var(--navy-700);
+      text-decoration: none; font-weight: 500; font-family: 'Prompt', sans-serif;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--kmitl-orange); }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-title {
+      font-family: 'Prompt', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy-900);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    /* Filter & Search */
+    .filter-bar {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 250px;
+      padding: 12px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      color: var(--navy-900);
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--kmitl-orange);
+      box-shadow: 0 0 0 2px rgba(230,85,37,0.1);
+    }
+    .category-select {
+      padding: 12px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      color: var(--navy-900);
+      background-color: white;
+      min-width: 200px;
+      cursor: pointer;
+    }
+    
+    /* Courses List */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
+    th {
+      padding: 12px 16px; text-align: left; font-size: 14px; font-family: 'Prompt', sans-serif;
+      color: var(--navy-700); font-weight: 600; white-space: nowrap;
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background-color: var(--gray-50); }
+
+    .badge {
+      display: inline-block; font-size: 12px; font-weight: 500; font-family: 'Prompt', sans-serif;
+      padding: 4px 8px; border-radius: 4px;
+    }
+    .badge-ge { background: #E2E8F0; color: #334155; }
+    .badge-core-math { background: #E0F2FE; color: #0284C7; }
+    .badge-core-cs { background: #FFF7F5; color: #E65525; }
+    .badge-elective { background: #FEF3C7; color: #D97706; }
+    .badge-free { background: #FCE7F3; color: #DB2777; }
+    .badge-alt { background: #EDE9FE; color: #7C3AED; }
+
+    .loading-box { text-align: center; padding: 48px; color: var(--text-muted); font-family: 'Prompt', sans-serif; }
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-content">
+      <div class="logo-box">K</div>
+      <div class="header-text">
+        <h1>ระบบตรวจสอบสถานะการสำเร็จการศึกษา</h1>
+        <p>หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการคอมพิวเตอร์ สจล.</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <a href="/" class="back-link">← กลับไปหน้าระบบหลัก</a>
+
+    <div class="card">
+      <div class="card-title">ค้นหารายวิชาในหลักสูตร</div>
+      
+      <div class="filter-bar">
+        <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อวิชา หรือ รหัสวิชา..." />
+        <select id="categorySelect" class="category-select">
+          <option value="all">ทุกประเภทวิชา</option>
+          <option value="ge">ศึกษาทั่วไป (GE)</option>
+          <option value="core_math">คณิตศาสตร์/สถิติบังคับ</option>
+          <option value="core_cs">วิชาบังคับ CS</option>
+          <option value="elective">วิชาเลือกเฉพาะสาขา</option>
+          <option value="free">วิชาเลือกเสรี</option>
+          <option value="alternative">การศึกษาทางเลือก</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table id="coursesTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>รหัสวิชา</th>
+              <th>ชื่อวิชา</th>
+              <th style="text-align:center;">หน่วยกิต</th>
+              <th>ประเภทวิชา</th>
+            </tr>
+          </thead>
+          <tbody id="coursesBody"></tbody>
+        </table>
+        <div id="loadingBox" class="loading-box">
+          กำลังโหลดข้อมูลรายวิชา...
+        </div>
+        <div id="noResultBox" class="loading-box" style="display:none;">
+          ไม่พบรายวิชาที่ค้นหา
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const GE_PREFIX = "90";
+    const CORE_MATH_CODES = new Set(["05506001", "05506002", "05506250", "05506231", "05506232", "05506233"]);
+    const ALTERNATIVE_CODES = new Set(["05506098", "05506099", "05506117", "05506118"]);
+    const CORE_CS_PREFIX = "055";
+
+    let allCourses = [];
+    let curriculumCodes = new Set();
+
+    const categoryLabels = {
+      "ge": { label: "ศึกษาทั่วไป (GE)", class: "badge-ge" },
+      "core_math": { label: "คณิตศาสตร์/สถิติบังคับ", class: "badge-core-math" },
+      "core_cs": { label: "วิชาบังคับ CS", class: "badge-core-cs" },
+      "elective": { label: "วิชาเลือกเฉพาะสาขา", class: "badge-elective" },
+      "free": { label: "วิชาเลือกเสรี", class: "badge-free" },
+      "alternative": { label: "การศึกษาทางเลือก", class: "badge-alt" }
+    };
+
+    function classifyCourse(code) {
+      if (code.startsWith(GE_PREFIX)) return "ge";
+      if (CORE_MATH_CODES.has(code)) return "core_math";
+      if (ALTERNATIVE_CODES.has(code)) return "alternative";
+      if (code.startsWith(CORE_CS_PREFIX) && curriculumCodes.has(code)) return "core_cs";
+      if (code.startsWith(CORE_CS_PREFIX) && !curriculumCodes.has(code)) return "elective";
+      return "free";
+    }
+
+    async function loadCourses() {
+      try {
+        const res = await fetch('/api/curriculum');
+        const data = await res.json();
+        
+        let courses = [];
+        data.forEach(term => {
+          term.courses.forEach(c => {
+            curriculumCodes.add(c.course_code);
+            courses.push(c);
+          });
+        });
+        
+        // Remove duplicates if any
+        const uniqueCoursesMap = new Map();
+        courses.forEach(c => {
+          uniqueCoursesMap.set(c.course_code, c);
+        });
+        allCourses = Array.from(uniqueCoursesMap.values());
+
+        // Assign categories
+        allCourses.forEach(c => {
+          c.categoryKey = classifyCourse(c.course_code);
+        });
+
+        document.getElementById('loadingBox').style.display = 'none';
+        document.getElementById('coursesTable').style.display = 'table';
+        
+        renderTable();
+      } catch (err) {
+        document.getElementById('loadingBox').textContent = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+      }
+    }
+
+    function renderTable() {
+      const search = document.getElementById('searchInput').value.trim().toLowerCase();
+      const cat = document.getElementById('categorySelect').value;
+      
+      const filtered = allCourses.filter(c => {
+        const matchSearch = (c.course_code.toLowerCase().includes(search) || 
+                             (c.course_name_th && c.course_name_th.toLowerCase().includes(search)) || 
+                             (c.course_name_en && c.course_name_en.toLowerCase().includes(search)));
+        const matchCat = (cat === 'all' || 
+                          (cat === 'free' && ['free', 'ge', 'elective'].includes(c.categoryKey)) || 
+                          c.categoryKey === cat);
+        return matchSearch && matchCat;
+      });
+
+      const tbody = document.getElementById('coursesBody');
+      tbody.innerHTML = '';
+      
+      // Update info text if 'free' is selected
+      let infoText = document.getElementById('freeElectiveInfo');
+      if (!infoText) {
+        infoText = document.createElement('div');
+        infoText.id = 'freeElectiveInfo';
+        infoText.style.marginBottom = '16px';
+        infoText.style.fontSize = '14px';
+        infoText.style.color = 'var(--text-muted)';
+        document.querySelector('.filter-bar').after(infoText);
+      }
+      
+      
+      if (filtered.length === 0) {
+        document.getElementById('coursesTable').style.display = 'none';
+        document.getElementById('noResultBox').style.display = 'block';
+        return;
+      }
+      
+      document.getElementById('coursesTable').style.display = 'table';
+      document.getElementById('noResultBox').style.display = 'none';
+
+      filtered.forEach(c => {
+        const tr = document.createElement('tr');
+        const catInfo = categoryLabels[c.categoryKey] || categoryLabels["free"];
+        
+        tr.innerHTML = `
+          <td style="font-family: monospace; color: var(--text-muted);">${c.course_code}</td>
+          <td style="color: var(--navy-800); font-weight: 500;">
+            ${c.url ? `<a href="${c.url}" target="_blank" style="color: var(--kmitl-orange); text-decoration: underline;">${c.course_name_th}</a>` : c.course_name_th}<br>
+            <span style="font-size: 13px; color: var(--text-muted); font-weight: 400;">${c.course_name_en || ''}</span>
+          </td>
+          <td style="text-align: center; font-weight: 500;">${c.credit}</td>
+          <td><span class="badge ${catInfo.class}">${catInfo.label}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('categorySelect').addEventListener('change', renderTable);
+
+    window.onload = loadCourses;
+  </script>
+</body>
+</html>

@@ -102,7 +102,7 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
 
     # Overall progress
     completed = [c for c in curriculum if c["code"] in passed_codes]
-    remaining = [c for c in curriculum if c["code"] not in passed_codes and c["code"] not in current_codes]
+    remaining = [c for c in curriculum if c["code"] not in passed_codes and c["code"] not in current_codes and c.get("year") is not None and c.get("semester") is not None]
     in_progress = [c for c in curriculum if c["code"] in current_codes]
 
     total_credits_target = 135 # ตามหลักสูตร พ.ศ. 2564
@@ -133,13 +133,25 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
     category_credits: dict[str, int] = {k: 0 for k in CATEGORIES}
     category_courses: dict[str, list] = {k: [] for k in CATEGORIES}
 
-    for c in transcript_courses:
+    # Sort courses chronologically
+    sorted_courses = sorted(
+        transcript_courses,
+        key=lambda c: (c.get("academic_year") or 9999, c.get("semester") or 99)
+    )
+
+    for c in sorted_courses:
         grade = (c.get("grade") or "").upper()
         is_current = c.get("is_current", False)
         if is_current or (not grade) or grade in NON_PASSING_GRADES:
             continue  # only count passed
+        
         cat = _classify_course(c["code"], curriculum_codes)
         credit = c.get("credit", 0)
+        
+        # Spillover logic: If ge or elective category is full, move to free elective
+        if cat in ["ge", "elective"] and category_credits[cat] >= CATEGORIES[cat]["target"]:
+            cat = "free"
+            
         category_credits[cat] += credit
         category_courses[cat].append({
             "code": c["code"],
@@ -291,12 +303,21 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
 
     # --- category credits earned so far ---
     cat_earned: dict[str, int] = {k: 0 for k in CATEGORIES}
-    for c in transcript_courses:
+    # Sort for consistent spillover
+    sorted_for_plan = sorted(
+        transcript_courses,
+        key=lambda c: (c.get("academic_year") or 9999, c.get("semester") or 99)
+    )
+    for c in sorted_for_plan:
         grade = (c.get("grade") or "").upper()
         is_current = c.get("is_current", False)
         if is_current or (not grade) or grade in NON_PASSING_GRADES:
             continue
         cat = _classify_course(c["code"], curriculum_codes)
+        
+        if cat in ["ge", "elective"] and cat_earned[cat] >= CATEGORIES[cat]["target"]:
+            cat = "free"
+            
         cat_earned[cat] += c.get("credit", 0)
 
     remaining_elective = max(0, CATEGORIES["elective"]["target"] - cat_earned["elective"])
@@ -306,7 +327,10 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
     # --- remaining core courses ---
     remaining_core = [
         c for c in flat
-        if c["code"] not in passed_codes and c["code"] not in current_codes
+        if c["code"] not in passed_codes 
+        and c["code"] not in current_codes
+        and c.get("year") is not None
+        and c.get("semester") is not None
     ]
 
     # --- determine starting semester from transcript ---

@@ -711,7 +711,12 @@
     <!-- Step 3: Dashboard -->
     <div id="dashboard-section">
       <div id="dashboard-content-wrapper">
-      <button class="reset-link" onclick="resetToUpload()">← อัปโหลดเอกสารใหม่</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <button class="reset-link" style="margin-bottom: 0;" onclick="resetToUpload()">← อัปโหลดเอกสารใหม่</button>
+        <a href="/search" class="btn btn-outline" style="text-decoration: none;">
+          ค้นหารายวิชา
+        </a>
+      </div>
 
       <!-- Overview -->
       <div class="overview-grid" id="overview-cards"></div>

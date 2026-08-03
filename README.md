@@ -1,85 +1,75 @@
-# SmartGrad
+# SmartGrad (ระบบตรวจสอบสถานะการสำเร็จการศึกษา)
 
-- `main.py` — FastAPI routes (upload form + result page)
-- `parser.py` — extracts course code/credit/grade rows out of the transcript PDF with `pdfplumber`
-- `dashboard.py` — matches parsed courses against `curriculum.json` and computes progress
-- `templates/index.html` — the single upload/results page (Jinja2)
-- `templates/advisor.html` — หน้าสำหรับอาจารย์ที่ปรึกษา (`/advisor`)
+SmartGrad เป็นแอปพลิเคชันบนเว็บที่ช่วยให้นักศึกษาสามารถตรวจสอบความก้าวหน้าในการเรียน คำนวณเปอร์เซ็นต์ความสำเร็จตามโครงสร้างหลักสูตร และวางแผนการลงทะเบียนเรียนในเทอมถัดไปได้อัตโนมัติ โดยใช้ข้อมูลจากการอัปโหลดไฟล์ Transcript รูปแบบ PDF จากสำนักทะเบียน นอกจากนี้ยังมีระบบสำหรับอาจารย์ที่ปรึกษาเพื่อใช้ติดตามผลการเรียนของนักศึกษาในความดูแลได้
 
-## Prerequisites
+## โครงสร้างไฟล์ (Project Structure)
 
-- Python 3.12
-- Docker (optional)
+- `main.py` — แกนหลักของ FastAPI ตั้งค่าแอปพลิเคชันรวมถึงการกำหนด Route สำหรับฝั่งนักศึกษา (`/`, `/search`, `/plan`)
+- `parser.py` — ประมวลผลและดึงข้อมูลจากไฟล์ Transcript PDF ด้วย `pdfplumber` (อ่านรหัสนักศึกษา, ชื่อ, รายวิชาที่เรียน, เกรด)
+- `dashboard.py` — คำนวณความก้าวหน้าในการเรียน และสร้างตารางแนะนำแผนการเรียน (Study Plan)
+- `database.py` — การตั้งค่าการเชื่อมต่อ SQLite (ใช้ฐานข้อมูล `smartgrad.db`)
+- `init.sql` / `seed.py` — คำสั่ง SQL สำหรับสร้างโครงสร้างหลักสูตร (Curriculum) และฟังก์ชันสำหรับ Seed ข้อมูลลงฐานข้อมูลเริ่มต้น
+- `models.py` — โมเดลข้อมูล Pydantic เพื่อใช้ในการ Validate ข้อมูลผ่าน API
+- `routers/` — จัดการ API Routes ย่อย:
+  - `students.py` — API เกี่ยวกับการจัดการข้อมูลนักศึกษา, บันทึกการจำลองถอนวิชา
+  - `curriculum.py` — API สำหรับดึงข้อมูลโครงสร้างหลักสูตรและการค้นหารายวิชา
+  - `advisors.py` — API และ Logic สำหรับระบบอาจารย์ที่ปรึกษา
+- `templates/` — หน้าต่างแสดงผล (Frontend) ใช้ HTML/JS/CSS ร่วมกับ Jinja2
+  - `index.html` — หน้าหลักของนักศึกษา (อัปโหลด, ตรวจสอบ, Dashboard สรุปผล, วางแผนการเรียน และ Export PDF)
+  - `search.html` — หน้าสำหรับค้นหารายวิชาทั้งหมดในหลักสูตร
+  - `advisor.html` — หน้าสำหรับอาจารย์ที่ปรึกษา
 
-## Option A: Run locally with plain pip
+## สิ่งที่ต้องมี (Prerequisites)
+
+- Python 3.12+
+- Docker (ถ้าต้องการใช้งานผ่าน Docker)
+
+## วิธีการรันโปรเจกต์ (Local Run)
+
+### วิธีที่ 1: รันผ่าน Python และ pip
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install fastapi[standard] jinja2 pdfplumber
+python -m venv .venv
+# สำหรับ Windows: .venv\Scripts\activate
+# สำหรับ Mac/Linux: source .venv/bin/activate
+pip install fastapi[standard] jinja2 pdfplumber python-multipart pydantic aiosqlite passlib bcrypt
 fastapi dev main.py
 ```
 
-This starts the dev server with auto-reload at http://localhost:8000.
+เมื่อเซิร์ฟเวอร์รันสำเร็จ สามารถเข้าใช้งานได้ที่: `http://localhost:8000`
 
-To run it production-style instead:
+### วิธีที่ 2: รันผ่าน uv (แนะนำ)
 
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-## Option A2: Run locally with uv
-
-If you already use [uv](https://docs.astral.sh/uv/), it'll install the exact pinned versions from `uv.lock`:
+ถ้าในเครื่องมีการติดตั้ง `uv` สามารถรันผ่าน uv ได้เลย:
 
 ```bash
 uv sync
 uv run fastapi dev main.py
 ```
 
-## Option B: Run with Docker
+### วิธีที่ 3: รันผ่าน Docker
 
-No local Python setup needed at all:
+สามารถใช้งานผ่าน Docker ได้โดยไม่ต้องตั้งค่า Python บนเครื่อง:
 
 ```bash
 docker compose up --build
 ```
+ระบบจะเข้าใช้งานได้ผ่านทาง `http://localhost:8000` เช่นเดียวกัน (เชื่อมพอร์ตไว้ที่ 8080 ภายในคอนเทนเนอร์)
 
-The app is served at http://localhost:8000 (mapped to container port 8080). The compose file mounts your source into the container for live-reload, so code edits pick up without rebuilding.
+## ฟีเจอร์หลักสำหรับนักศึกษา (Student Features)
+1. **อัปโหลดและตรวจสอบ:** ดึงข้อมูลจาก Transcript (.pdf) ได้ทันที
+2. **Dashboard สรุปผล:** แสดงหน่วยกิตที่ได้แยกตามหมวดหมู่ (วิชาแกน, เลือกสาขา, GE, เลือกเสรี) พร้อมแถบ % ความก้าวหน้า
+3. **วางแผนการเรียน (Study Plan):** ระบบแนะนำการลงวิชาในแต่ละเทอม (Drag & Drop เพื่อย้ายเทอมได้)
+4. **Export PDF:** สั่งบันทึกแผนการเรียนที่จัดเสร็จแล้วออกมาเป็นไฟล์ PDF ได้
+5. **จำลองการถอน (Withdraw):** จำลองสถานการณ์ถอนรายวิชา (W) ในเทอมปัจจุบัน เพื่อดูผลกระทบ
 
-To run the production image directly, without compose:
+## ฟีเจอร์สำหรับอาจารย์ที่ปรึกษา (Advisor System)
 
-```bash
-docker build -t smartgrad .
-docker run -p 8080:8080 smartgrad
-```
+เปิด `http://localhost:8000/advisor` แล้วเข้าสู่ระบบด้วยบัญชีที่ถูกสร้างขึ้นตอน Seed ข้อมูล:
 
-## Deployment
+- **รหัสอาจารย์:** `ADVISOR001`
+- **รหัสผ่าน:** `smartgrad-demo`
+- **ปีการศึกษาที่ดูแล:** `2567` (นักศึกษาที่รหัสขึ้นต้นด้วย `67`)
 
-The `Dockerfile` reads the `PORT` env var (defaulting to 8080), which matches what Google Cloud Run expects — build and deploy the image there via `gcloud run deploy`.
+*หมายเหตุ:* นักศึกษาไม่ต้องสมัครสมาชิก! เมื่ออัปโหลด Transcript เข้ามา ระบบจะดึงรหัสนักศึกษาและผูกกับอาจารย์ที่ปรึกษาตาม `cohort_year` อัตโนมัติ
 
-## หน้าสำหรับอาจารย์ที่ปรึกษา
-
-เปิด `http://localhost:8000/advisor` แล้วเข้าสู่ระบบด้วยบัญชีสาธิตที่ระบบสร้างในฐานข้อมูลให้อัตโนมัติเมื่อเริ่มต้น:
-
-- รหัสอาจารย์: `ADVISOR001`
-- รหัสผ่าน: `smartgrad-demo`
-- ปีการศึกษาที่ดูแล: `2567` (รหัสนักศึกษาที่ขึ้นต้นด้วย `67`)
-
-หน้านี้จะแสดงเฉพาะนักศึกษาในความดูแลที่อัปโหลด Transcript แล้วเท่านั้น และการส่งคำแนะนำจะส่งไปยัง `{รหัสนักศึกษา 8 หลัก}@kmitl.ac.th`
-
-นักศึกษาไม่ต้องมีบัญชี: ที่หน้าอัปโหลดหลักเพียงเลือกไฟล์ Transcript ระบบจะอ่านรหัสนักศึกษาและชื่อจาก PDF สร้างข้อมูลนักศึกษา และผูกอาจารย์ตาม `cohort_year` ของบัญชีอาจารย์ใน `init.sql` โดยอัตโนมัติ เช่น `67050476` จะถูกผูกกับอาจารย์ของปี `2567`.
-
-ตั้งค่าการส่งอีเมลผ่านตัวแปรระบบต่อไปนี้ (ไม่ต้องใส่รหัสผ่านลงในโค้ด):
-
-```bash
-SESSION_SECRET=replace-with-a-long-random-value
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_FROM=smartgrad@example.com
-SMTP_USERNAME=smartgrad@example.com
-SMTP_PASSWORD=your-smtp-password
-SMTP_STARTTLS=true
-```
-
-หากยังไม่ได้ตั้งค่า `SMTP_HOST` และ `SMTP_FROM` ระบบจะแจ้งว่าไม่สามารถส่งอีเมลได้ โดยจะไม่บันทึกโน้ตว่า “ส่งสำเร็จ”

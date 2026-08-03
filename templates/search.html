@@ -251,12 +251,15 @@
       "alternative": { label: "การศึกษาทางเลือก", class: "badge-alt" }
     };
 
-    function classifyCourse(code) {
+    function classifyCourse(c) {
+      const code = c.course_code;
       if (code.startsWith(GE_PREFIX)) return "ge";
       if (CORE_MATH_CODES.has(code)) return "core_math";
       if (ALTERNATIVE_CODES.has(code)) return "alternative";
-      if (code.startsWith(CORE_CS_PREFIX) && curriculumCodes.has(code)) return "core_cs";
-      if (code.startsWith(CORE_CS_PREFIX) && !curriculumCodes.has(code)) return "elective";
+      if (code.startsWith(CORE_CS_PREFIX)) {
+        if (c.year !== null) return "core_cs";
+        return "elective";
+      }
       return "free";
     }
 
@@ -282,7 +285,7 @@
 
         // Assign categories
         allCourses.forEach(c => {
-          c.categoryKey = classifyCourse(c.course_code);
+          c.categoryKey = classifyCourse(c);
         });
 
         document.getElementById('loadingBox').style.display = 'none';

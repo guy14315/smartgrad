@@ -598,7 +598,7 @@
   
     /* ===== DRAG AND DROP & CUSTOM COURSES ===== */
     .unplanned-pool {
-      display: flex; flex-wrap: wrap; gap: 8px;
+      display: flex; flex-direction: column; gap: 8px;
       padding: 16px; background: var(--gray-50); border: 2px dashed var(--gray-300);
       border-radius: var(--radius); min-height: 80px; margin-bottom: 24px;
       transition: background 0.2s;
@@ -716,6 +716,9 @@
       padding: 24px;
     }
 
+    /* ===== PLAN MODE STYLES ===== */
+    body.print-plan-mode .container { max-width: 1400px; transition: max-width 0.3s ease; }
+
     /* ===== PRINT STYLES ===== */
     @media print {
       body { background: #fff !important; color: #000 !important; font-size: 12pt !important; }
@@ -723,10 +726,14 @@
       #dashboard-content-wrapper { display: block !important; }
       
       body.print-plan-mode #dashboard-content-wrapper > * { display: none !important; }
-      body.print-plan-mode #dashboard-content-wrapper > #progress-card { display: block !important; margin-top: 20px !important; }
-      body.print-plan-mode #unplanned-card { display: none !important; }
+      body.print-plan-mode #dashboard-content-wrapper > #categories-card { display: block !important; margin-top: 20px !important; margin-bottom: 20px !important; border: none !important; padding: 0 !important; }
+      body.print-plan-mode .plan-sidebar { display: none !important; }
+      body.print-plan-mode #plan-summary { display: none !important; }
 
       .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .card.print-hide { display: none !important; }
+      .print-hide { display: none !important; }
+      .print-only { display: block !important; }
       .card { box-shadow: none !important; border: 1px solid #ddd !important; padding: 16px !important; margin-bottom: 20px !important; page-break-inside: avoid; }
       .plan-term { page-break-inside: avoid; border-color: #000 !important; }
       tr, .timeline-item, .cat-card, .plan-course-row { page-break-inside: avoid; }
@@ -872,9 +879,10 @@
       <div class="card" id="progress-card"></div>
 
       <!-- Categories -->
-      <div class="card">
-        <div class="card-title"> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
-        <div class="cat-grid" id="cat-grid"></div>
+      <div class="card" id="categories-card">
+        <div class="card-title print-hide"> สรุปหน่วยกิตแยกตามหมวดวิชา</div>
+        <div class="cat-grid print-hide" id="cat-grid"></div>
+        <div class="print-only" id="print-cat-summary" style="display:none;"></div>
       </div>
 
       <!-- Study Plan Button & Section -->
@@ -936,7 +944,7 @@
       </div><!-- /dashboard-content-wrapper -->
 
       <div id="plan-section">
-        <div class="card" style="margin-bottom:24px; padding:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div class="card print-hide" style="margin-bottom:24px; padding:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
           <div>
             <button class="reset-link" onclick="closePlan()" style="margin-bottom:12px;">← กลับไปหน้า Dashboard</button>
             <h2 style="margin:0; font-family:'Prompt'; font-size:22px; color:var(--navy-800);"> แผนการเรียนที่แนะนำ</h2>
@@ -953,22 +961,32 @@
         <div id="plan-warnings"></div>
         <div id="plan-summary"></div>
         
-        <div class="card" id="unplanned-card">
-          <div class="card-title">วิชาที่รอจัดลงตาราง (ลากเพื่อจัดแผน)</div>
-          <div class="unplanned-pool" id="unplanned-pool" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'pool')">
+        <div class="plan-layout" style="display: flex; gap: 24px; align-items: flex-start; margin-top: 24px; flex-wrap: wrap;">
+          
+          <!-- Sidebar: Unplanned Pool -->
+          <div class="plan-sidebar" style="position: sticky; top: 24px; width: 340px; flex-shrink: 0; max-height: calc(100vh - 48px); display: flex; flex-direction: column;">
+            <div class="card" id="unplanned-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 0;">
+              <div class="card-title">วิชาที่รอจัดลงตาราง (ลาก)</div>
+              <div class="unplanned-pool" id="unplanned-pool" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'pool')" style="flex: 1; overflow-y: auto;">
+              </div>
+            </div>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title"> แผนการเรียนรายเทอม</div>
-          <div id="plan-terms-list"></div>
-        </div>
-        <div id="plan-suggestions" style="display:none">
-          <div class="card">
-            <div class="card-title"> คำแนะนำ</div>
-            <ul class="plan-suggestion-list" id="plan-suggestions-list"></ul>
+          
+          <!-- Main Content: Terms -->
+          <div class="plan-main-content" style="flex: 1; min-width: 0;">
+            <div class="card">
+              <div class="card-title"> แผนการเรียนรายเทอม</div>
+              <div id="plan-terms-list"></div>
+            </div>
+            <div id="plan-suggestions" style="display:none">
+              <div class="card">
+                <div class="card-title"> คำแนะนำ</div>
+                <ul class="plan-suggestion-list" id="plan-suggestions-list"></ul>
+              </div>
+            </div>
           </div>
-        </div>
+          
+        </div> <!-- /plan-layout -->
       </div>
 
     </div><!-- /dashboard -->
@@ -992,6 +1010,21 @@
     ge:'#64748B', core_math:'#0284C7', core_cs:'#E65525',
     elective:'#D97706', free:'#DB2777', alternative:'#7C3AED'
   };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const saved = sessionStorage.getItem('smartgrad_state');
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        parsedCourses = state.parsedCourses;
+        parsedStudent = state.parsedStudent;
+        renderDashboard(state.dashboardData);
+        goToStep(3);
+      } catch (e) {
+        sessionStorage.removeItem('smartgrad_state');
+      }
+    }
+  });
 
   /* ===================================================
      FILE INPUT
@@ -1205,6 +1238,11 @@
   =================================================== */
   function renderDashboard(d) {
     window.dashboardData = d;
+    sessionStorage.setItem('smartgrad_state', JSON.stringify({
+        parsedCourses: parsedCourses,
+        parsedStudent: parsedStudent,
+        dashboardData: d
+    }));
     // Overview cards
     document.getElementById('overview-cards').innerHTML = `
       <div class="ov-card success">
@@ -1287,6 +1325,35 @@
       html += `</div></div>`;
       return html;
     }).join('');
+
+    // Generate formal summary for print
+    let summaryHtml = `
+      <h3 style="margin-top:0; margin-bottom:8px; border-bottom:2px solid #000; padding-bottom:4px; font-family:'Sarabun',sans-serif; font-size:18px;">สรุปหน่วยกิตแยกตามหมวดวิชา</h3>
+      <table style="width:100%; border-collapse:collapse; font-size:14px; font-family:'Sarabun',sans-serif;">
+        <thead>
+          <tr style="border-bottom:1px solid #000; text-align:left;">
+            <th style="padding:4px 0; background:none;">หมวดวิชา</th>
+            <th style="padding:4px 0; text-align:center; background:none;">ที่ต้องเรียน</th>
+            <th style="padding:4px 0; text-align:center; background:none;">ผ่านแล้ว</th>
+            <th style="padding:4px 0; text-align:right; background:none;">สถานะ</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    d.categories.forEach(cat => {
+      const isComplete = cat.earned_credits >= cat.target_credits;
+      const statusText = isComplete ? 'ครบถ้วน' : `ขาด ${cat.target_credits - cat.earned_credits}`;
+      summaryHtml += `
+        <tr style="border-bottom:1px dashed #ccc;">
+          <td style="padding:6px 0;">${cat.label}</td>
+          <td style="padding:6px 0; text-align:center;">${cat.target_credits}</td>
+          <td style="padding:6px 0; text-align:center;">${cat.earned_credits}</td>
+          <td style="padding:6px 0; text-align:right; font-weight:${isComplete ? 'bold' : 'normal'}; color:${isComplete ? '#000' : '#444'};">${statusText}</td>
+        </tr>
+      `;
+    });
+    summaryHtml += `</tbody></table>`;
+    document.getElementById('print-cat-summary').innerHTML = summaryHtml;
 
     // animate category bars
     setTimeout(() => {
@@ -1416,6 +1483,7 @@
   }
 
   function resetToUpload() {
+    sessionStorage.removeItem('smartgrad_state');
     fileObj = null;
     parsedCourses = [];
     parsedStudent = null;
@@ -1493,17 +1561,22 @@
     planTermData.forEach((term, i) => {
         const strictCore = [];
         const draggableCore = [];
-        term.core_courses.forEach(c => {
-            if(c.category === 'ge' || c.category === 'elective' || c.category === 'free' || c.is_deferred) {
-                draggableCore.push(c);
-                if(c.category === 'ge') sysPlannedGe += (c.credit || 0);
-                if(c.category === 'elective') sysPlannedElective += (c.credit || 0);
-                if(c.category === 'free') sysPlannedFree += (c.credit || 0);
-            } else {
-                strictCore.push(c);
-            }
-        });
-        term.core_credits -= draggableCore.reduce((sum, c) => sum + (c.credit || 0), 0);
+        if (term.is_locked) {
+            // Keep all courses locked, don't count towards sysPlanned since backend already deducted from remaining
+            term.core_courses.forEach(c => strictCore.push(c));
+        } else {
+            term.core_courses.forEach(c => {
+                if(c.category === 'ge' || c.category === 'elective' || c.category === 'free' || c.is_deferred) {
+                    draggableCore.push(c);
+                    if(c.category === 'ge') sysPlannedGe += (c.credit || 0);
+                    if(c.category === 'elective') sysPlannedElective += (c.credit || 0);
+                    if(c.category === 'free') sysPlannedFree += (c.credit || 0);
+                } else {
+                    strictCore.push(c);
+                }
+            });
+            term.core_credits -= draggableCore.reduce((sum, c) => sum + (c.credit || 0), 0);
+        }
         term.core_courses = strictCore;
         term.draggable_courses = draggableCore;
     });
@@ -1523,19 +1596,19 @@
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:16px; margin-bottom:24px;">
         <div class="plan-stat">
           <div class="plan-stat-value" id="ui-rem-elec" style="font-size:24px"><span style="color:var(--kmitl-orange)">0</span> / ${d.remaining_elective_credits}</div>
-          <div class="plan-stat-label">หน่วยกิตเลือกเฉพาะสาขาที่จัดลงแผน</div>
+          <div class="plan-stat-label">หน่วยกิตเลือกเฉพาะสาขา</div>
         </div>
         <div class="plan-stat">
           <div class="plan-stat-value" id="ui-rem-free" style="font-size:24px"><span style="color:var(--kmitl-orange)">0</span> / ${d.remaining_free_credits}</div>
-          <div class="plan-stat-label">หน่วยกิตเลือกเสรีที่จัดลงแผน</div>
+          <div class="plan-stat-label">หน่วยกิตเลือกเสรี</div>
         </div>
         <div class="plan-stat">
           <div class="plan-stat-value" id="ui-rem-ge" style="font-size:24px"><span style="color:var(--kmitl-orange)">0</span> / ${d.remaining_ge_credits}</div>
-          <div class="plan-stat-label">หน่วยกิต GE ที่จัดลงแผน</div>
+          <div class="plan-stat-label">หน่วยกิต GE </div>
         </div>
         <div class="plan-stat">
           <div class="plan-stat-value ${d.can_graduate_on_time ? 'ok' : 'warn'}">${d.total_available_slots}</div>
-          <div class="plan-stat-label">ช่องว่างทั้งหมดในแผน (หน่วยกิต)</div>
+          <div class="plan-stat-label">หน่วยกิตว่าง</div>
         </div>
       </div>
     `;
@@ -1582,7 +1655,7 @@
             <div class="plan-course-code">${c.code}</div>
             <div class="plan-course-name">${c.name_en || c.name_th}</div>
             <span class="plan-badge ${c.is_deferred ? 'deferred' : 'required'}">
-              ${c.is_deferred ? 'เลือกลง' : 'บังคับ'}
+              ${term.is_locked ? 'กำลังเรียน' : (c.is_deferred ? 'เลือกลง' : 'บังคับ')}
             </span>
             <div class="plan-course-credit">${c.credit} นก.</div>
           </div>
@@ -1592,10 +1665,10 @@
       }
 
       return `
-        <div class="plan-term">
-          <div class="plan-term-header" onclick="togglePlanTerm(${i})">
+        <div class="plan-term ${term.is_locked ? 'locked' : ''}">
+          <div class="plan-term-header" onclick="togglePlanTerm(${i})" style="${term.is_locked ? 'background-color: var(--gray-100);' : ''}">
             <div class="plan-term-left">
-              <div class="plan-term-dot"></div>
+              <div class="plan-term-dot" style="${term.is_locked ? 'background-color: var(--gray-400);' : ''}"></div>
               <div class="plan-term-label">${term.label}</div>
             </div>
             <div style="display:flex;align-items:center;gap:16px;">
@@ -1607,7 +1680,7 @@
             </div>
           </div>
           <div class="plan-term-body show" id="plan-body-${i}">
-            <div class="plan-term-dropzone" id="dropzone-${i}" data-idx="${i}" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, ${i})">
+            <div class="plan-term-dropzone" id="dropzone-${i}" data-idx="${i}" ${term.is_locked ? '' : `ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, ${i})"`}>
                 ${coursesHtml}
                 ${(term.draggable_courses || []).map(c => `
                 <div class="plan-course-row draggable-course sys-course" draggable="true" id="sys_${c.code}_${i}" data-cat="${c.category || 'core'}" data-credit="${c.credit}" ondragstart="dragStart(event)" ondragend="dragEnd(event)" style="position:relative;">
@@ -1620,7 +1693,7 @@
                 </div>
                 `).join('')}
             </div>
-            <button class="btn-add-course" onclick="openAddCourseModal(${i})">+ เพิ่มวิชาอื่นๆ</button>
+            ${term.is_locked ? '' : `<button class="btn-add-course" onclick="openAddCourseModal(${i})">+ เพิ่มวิชาอื่นๆ</button>`}
             <div class="plan-term-footer">
               <span>หน่วยกิตรวม (รวมที่ลากมา): <strong id="term-total-${i}">${term.core_credits}</strong> / ${term.max_credits}</span>
               <div class="plan-credits-bar">
@@ -1851,7 +1924,12 @@
                               resultsBox.style.display = 'none';
                               return;
                           }
-                          resultsBox.innerHTML = data.slice(0, 10).map(c => {
+                          const filteredData = data.filter(c => c.year === null);
+                          if(filteredData.length === 0) {
+                              resultsBox.style.display = 'none';
+                              return;
+                          }
+                          resultsBox.innerHTML = filteredData.slice(0, 10).map(c => {
                               let catValue = 'custom-elective';
                               if (c.course_code.startsWith('045') || c.course_code.startsWith('145') || c.course_code.startsWith('90')) {
                                   catValue = 'custom-ge';

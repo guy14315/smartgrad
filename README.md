@@ -32,22 +32,13 @@ SmartGrad เป็นแอปพลิเคชันบนเว็บที�
 python -m venv .venv
 # สำหรับ Windows: .venv\Scripts\activate
 # สำหรับ Mac/Linux: source .venv/bin/activate
-pip install fastapi[standard] jinja2 pdfplumber python-multipart pydantic aiosqlite passlib bcrypt
-fastapi dev main.py
+pip install fastapi[standard] uvicorn jinja2 pdfplumber python-multipart pydantic aiosqlite passlib bcrypt
+uvicorn main:app --reload
 ```
 
 เมื่อเซิร์ฟเวอร์รันสำเร็จ สามารถเข้าใช้งานได้ที่: `http://localhost:8000`
 
-### วิธีที่ 2: รันผ่าน uv (แนะนำ)
-
-ถ้าในเครื่องมีการติดตั้ง `uv` สามารถรันผ่าน uv ได้เลย:
-
-```bash
-uv sync
-uv run fastapi dev main.py
-```
-
-### วิธีที่ 3: รันผ่าน Docker
+### วิธีที่ 2: รันผ่าน Docker
 
 สามารถใช้งานผ่าน Docker ได้โดยไม่ต้องตั้งค่า Python บนเครื่อง:
 
@@ -72,4 +63,3 @@ docker compose up --build
 - **ปีการศึกษาที่ดูแล:** `2567` (นักศึกษาที่รหัสขึ้นต้นด้วย `67`)
 
 *หมายเหตุ:* นักศึกษาไม่ต้องสมัครสมาชิก! เมื่ออัปโหลด Transcript เข้ามา ระบบจะดึงรหัสนักศึกษาและผูกกับอาจารย์ที่ปรึกษาตาม `cohort_year` อัตโนมัติ
-

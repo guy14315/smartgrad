@@ -4,8 +4,5 @@ services:
     ports:
       - "8000:8080"
     volumes:
-      # Live-reload source from the host; the anonymous volume keeps the
-      # container's Linux-built .venv from being shadowed by the host one.
       - .:/app
-      - /app/.venv
     command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload

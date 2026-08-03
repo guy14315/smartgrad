@@ -1,16 +1,11 @@
-# --- build stage: resolve dependencies into a venv ---
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
-
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=never
+# --- build stage ---
+FROM python:3.12-slim-bookworm AS builder
 
 WORKDIR /app
 
-# Copied separately so the dependency layer is cached across code changes.
-COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --locked --no-dev
-
+# Install build dependencies if needed (none strictly needed for these packages, but standard practice)
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
 # --- runtime stage ---
 FROM python:3.12-slim-bookworm
@@ -19,13 +14,16 @@ WORKDIR /app
 
 RUN useradd --create-home --uid 1000 app
 
-COPY --from=builder --chown=app:app /app/.venv /app/.venv
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+
+RUN pip install --no-cache /wheels/*
+
 COPY --chown=app:app main.py parser.py dashboard.py database.py models.py seed.py init.sql ./
 COPY --chown=app:app routers/ ./routers/
 COPY --chown=app:app templates/ ./templates/
 
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PORT=8080
 
 USER app

@@ -408,6 +408,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
                     "name_th": c["name_th"],
                     "credit": c["credit"],
                     "is_deferred": (c["year"] or 99, c["semester"] or 99) < (y, s),
+                    "category": _classify_course(c["code"], curriculum_codes),
                 }
                 for c in term_courses
             ],

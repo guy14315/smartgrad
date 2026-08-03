@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ระบบตรวจสอบสถานะการสำเร็จการศึกษา - สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง</title>
+  <title>ระบบตรวจสอบสถานะการสำเร็จการศึกษา</title>
   <meta name="description" content="ระบบตรวจสอบความก้าวหน้าการเรียนและวิชาคงเหลือ ภาควิชาวิทยาการคอมพิวเตอร์" />
   
   <!-- Google Fonts: Sarabun for formal text, Prompt for headings -->
@@ -595,6 +595,151 @@
       display: flex; align-items: flex-start; gap: 8px;
     }
     .plan-suggestion-list li:last-child { border-bottom: none; }
+  
+    /* ===== DRAG AND DROP & CUSTOM COURSES ===== */
+    .unplanned-pool {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 16px; background: var(--gray-50); border: 2px dashed var(--gray-300);
+      border-radius: var(--radius); min-height: 80px; margin-bottom: 24px;
+      transition: background 0.2s;
+    }
+    .unplanned-pool.drag-over { background: var(--primary-light); border-color: var(--kmitl-orange); }
+    
+    .draggable-course {
+      cursor: grab;
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 14px; background: #fff;
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 13px; min-width: 140px; max-width: 200px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      position: relative;
+    }
+    .draggable-course:active { cursor: grabbing; transform: scale(0.98); }
+    .draggable-course.dragging { opacity: 0.5; }
+    .draggable-course[data-cat="ge"] { border-left: 4px solid var(--gray-400); }
+    .draggable-course[data-cat="elective"] { border-left: 4px solid #D97706; }
+    .draggable-course[data-cat="free"] { border-left: 4px solid #DB2777; }
+    .draggable-course.custom-course { border-left: 4px solid var(--success); }
+    
+    /* When inside term dropzone: Full width row */
+    .plan-term-dropzone .draggable-course.sys-course {
+      flex-direction: row;
+      width: 100%;
+      box-sizing: border-box;
+      max-width: none;
+      padding: 12px 20px !important;
+      background: transparent !important;
+      border: none !important;
+      border-bottom: 1px solid var(--gray-50) !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      margin-bottom: 0 !important;
+      font-size: 14px !important;
+      gap: 16px !important;
+    }
+    
+    /* When inside unplanned pool: Small block */
+    .unplanned-pool .draggable-course.sys-course {
+      flex-direction: column;
+      width: auto;
+      min-width: 140px;
+      max-width: 200px;
+      padding: 10px 14px !important;
+      background: #fff !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 6px !important;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+      margin-bottom: 0 !important;
+      font-size: 13px !important;
+      gap: 4px !important;
+    }
+    .unplanned-pool .draggable-course.sys-course[data-cat="ge"] { border-left: 4px solid var(--gray-400) !important; }
+    .unplanned-pool .draggable-course.sys-course[data-cat="elective"] { border-left: 4px solid #D97706 !important; }
+    .unplanned-pool .draggable-course.sys-course[data-cat="free"] { border-left: 4px solid #DB2777 !important; }
+    .unplanned-pool .draggable-course.sys-course.custom-course { border-left: 4px solid var(--success) !important; }
+    
+    .unplanned-pool .sys-course .plan-course-code,
+    .unplanned-pool .sys-course .plan-badge,
+    .unplanned-pool .sys-course .course-del-btn {
+      display: none !important;
+    }
+    .unplanned-pool .sys-course .plan-course-name {
+       font-weight: 600; font-family: 'Prompt', sans-serif; color: var(--navy-800); word-break: break-word; line-height: 1.3; flex: unset;
+    }
+    .unplanned-pool .sys-course .plan-course-credit {
+       font-size: 12px; color: var(--text-muted); text-align: left; flex-shrink: unset;
+    }
+    
+    
+    .course-title-drag { font-weight: 600; font-family: 'Prompt', sans-serif; color: var(--navy-800); word-break: break-word; line-height: 1.3;}
+    .course-cred-drag { font-size: 12px; color: var(--text-muted); }
+    .course-del-btn {
+       position: absolute; top: 4px; right: 4px; font-size: 10px;
+       color: var(--danger); background: transparent; border: none; cursor: pointer;
+       opacity: 0; transition: opacity 0.2s;
+    }
+    .draggable-course:hover .course-del-btn { opacity: 1; }
+    
+    .plan-term-dropzone {
+      min-height: 60px; padding: 12px;
+      transition: background 0.2s;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .plan-term-dropzone.drag-over {
+      background: var(--primary-light);
+      outline: 2px dashed var(--kmitl-orange);
+      outline-offset: -2px; border-radius: 6px;
+    }
+
+    .btn-add-course {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 100%; padding: 8px; margin-top: 8px;
+      background: transparent; border: 1px dashed var(--gray-300);
+      border-radius: 6px; color: var(--gray-500); cursor: pointer;
+      font-family: 'Prompt', sans-serif; font-size: 13px; font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-add-course:hover { background: var(--gray-50); color: var(--kmitl-orange); border-color: var(--kmitl-orange); }
+
+    /* Modal for Add Custom Course */
+    .add-course-modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      display: none; justify-content: center; align-items: center;
+      z-index: 1000; padding: 20px; backdrop-filter: blur(4px);
+    }
+    .add-course-modal-overlay.show { display: flex; }
+    .add-course-modal {
+      background: #fff; border-radius: var(--radius); width: 100%; max-width: 400px;
+      box-shadow: var(--shadow-md); display: flex; flex-direction: column;
+      padding: 24px;
+    }
+
+    /* ===== PRINT STYLES ===== */
+    @media print {
+      body { background: #fff !important; color: #000 !important; font-size: 12pt !important; }
+      header, #steps, .reset-link, .btn, .btn-plan, .plan-toggle, .course-del-btn, .btn-add-course { display: none !important; }
+      #dashboard-content-wrapper { display: block !important; }
+      
+      body.print-plan-mode #dashboard-content-wrapper > * { display: none !important; }
+      body.print-plan-mode #dashboard-content-wrapper > #progress-card { display: block !important; margin-top: 20px !important; }
+      body.print-plan-mode #unplanned-card { display: none !important; }
+
+      .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .card { box-shadow: none !important; border: 1px solid #ddd !important; padding: 16px !important; margin-bottom: 20px !important; page-break-inside: avoid; }
+      .plan-term { page-break-inside: avoid; border-color: #000 !important; }
+      tr, .timeline-item, .cat-card, .plan-course-row { page-break-inside: avoid; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      /* Force all details to be open for print */
+      .cat-detail { display: block !important; }
+      .timeline-body { display: block !important; }
+      .plan-term-body { display: block !important; }
+      /* Hide draggable dots in print */
+      .plan-course-code span { display: none !important; }
+      .draggable-course { cursor: default !important; }
+    }
+
   </style>
 </head>
 
@@ -671,7 +816,7 @@
       <button class="reset-link" onclick="resetToUpload()">← กลับไปอัปโหลดเอกสารใหม่</button>
 
       <div class="card">
-        <div class="card-title"><span class="icon">✏</span> ตรวจสอบและแก้ไขข้อมูลรายวิชา</div>
+        <div class="card-title"><span class="icon"></span> ตรวจสอบและแก้ไขข้อมูลรายวิชา</div>
 
         <div class="review-info" id="review-info"></div>
 
@@ -713,9 +858,11 @@
       <div id="dashboard-content-wrapper">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <button class="reset-link" style="margin-bottom: 0;" onclick="resetToUpload()">← อัปโหลดเอกสารใหม่</button>
-        <a href="/search" class="btn btn-outline" style="text-decoration: none;">
-          ค้นหารายวิชา
-        </a>
+        <div style="display:flex; gap:12px;">
+          <a href="/search" class="btn btn-outline" style="text-decoration: none;">
+            ค้นหารายวิชา
+          </a>
+        </div>
       </div>
 
       <!-- Overview -->
@@ -794,14 +941,24 @@
             <button class="reset-link" onclick="closePlan()" style="margin-bottom:12px;">← กลับไปหน้า Dashboard</button>
             <h2 style="margin:0; font-family:'Prompt'; font-size:22px; color:var(--navy-800);"> แผนการเรียนที่แนะนำ</h2>
           </div>
-          <div class="plan-toggle">
-            <button class="plan-toggle-btn active" data-plan="normal" onclick="setPlanType('normal')">แผนปกติ (ปัญหาพิเศษ)</button>
-            <button class="plan-toggle-btn" data-plan="coop" onclick="setPlanType('coop')">แผนสหกิจศึกษา</button>
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <div class="plan-toggle">
+              <button class="plan-toggle-btn active" data-plan="normal" onclick="setPlanType('normal')">แผนปกติ (ปัญหาพิเศษ)</button>
+              <button class="plan-toggle-btn" data-plan="coop" onclick="setPlanType('coop')">แผนสหกิจศึกษา</button>
+            </div>
+            <button class="btn btn-primary" onclick="window.print()" style="margin-top:0; width:auto;">Export PDF</button>
           </div>
         </div>
 
         <div id="plan-warnings"></div>
         <div id="plan-summary"></div>
+        
+        <div class="card" id="unplanned-card">
+          <div class="card-title">วิชาที่รอจัดลงตาราง (ลากเพื่อจัดแผน)</div>
+          <div class="unplanned-pool" id="unplanned-pool" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'pool')">
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-title"> แผนการเรียนรายเทอม</div>
           <div id="plan-terms-list"></div>
@@ -824,7 +981,11 @@
   =================================================== */
   let parsedCourses = [];    // raw from /review
   let parsedStudent = null;
+  let planTermData = [];
+  let dragCourseId = null;
+  let nextCustomId = 1;
   let fileObj = null;
+  let baselineStats = { ge:0, elective:0, free:0 };
 
   const NON_PASS = new Set(['F','W','WU','U']);
   const CAT_COLORS = {
@@ -1228,6 +1389,7 @@
     if (step === 3) {
       document.getElementById('dashboard-content-wrapper').style.display = 'block';
       document.getElementById('plan-section').classList.remove('show');
+      document.body.classList.remove('print-plan-mode');
     }
 
     // update dots
@@ -1301,6 +1463,7 @@
       renderStudyPlan(data);
       document.getElementById('dashboard-content-wrapper').style.display = 'none';
       document.getElementById('plan-section').classList.add('show');
+      document.body.classList.add('print-plan-mode');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {
       alert('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
@@ -1313,56 +1476,96 @@
   function closePlan() {
     document.getElementById('plan-section').classList.remove('show');
     document.getElementById('dashboard-content-wrapper').style.display = 'block';
+    document.body.classList.remove('print-plan-mode');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function renderStudyPlan(d) {
+    planTermData = d.plan_terms;
+    baselineStats = {
+      ge: d.remaining_ge_credits,
+      elective: d.remaining_elective_credits,
+      free: d.remaining_free_credits
+    };
+    
+    // Process planTermData to extract non-core courses into draggable ones
+    let sysPlannedGe = 0, sysPlannedElective = 0, sysPlannedFree = 0;
+    planTermData.forEach((term, i) => {
+        const strictCore = [];
+        const draggableCore = [];
+        term.core_courses.forEach(c => {
+            if(c.category === 'ge' || c.category === 'elective' || c.category === 'free' || c.is_deferred) {
+                draggableCore.push(c);
+                if(c.category === 'ge') sysPlannedGe += (c.credit || 0);
+                if(c.category === 'elective') sysPlannedElective += (c.credit || 0);
+                if(c.category === 'free') sysPlannedFree += (c.credit || 0);
+            } else {
+                strictCore.push(c);
+            }
+        });
+        term.core_credits -= draggableCore.reduce((sum, c) => sum + (c.credit || 0), 0);
+        term.core_courses = strictCore;
+        term.draggable_courses = draggableCore;
+    });
+
     // Warnings
     const warningsEl = document.getElementById('plan-warnings');
     if (d.warnings.length > 0) {
       warningsEl.innerHTML = d.warnings.map(w => {
-        const isDanger = w.includes('มากกว่า 4 ปี') || w.includes('ไม่สามารถ');
-        return `
-          <div class="plan-alert ${isDanger ? 'danger' : 'warning'}">
-            <span class="plan-alert-icon">${isDanger ? '' : ''}</span>
-            <div class="plan-alert-content">${w}</div>
-          </div>
-        `;
+        return `<div class="plan-alert warning"><div class="plan-alert-icon">!</div><div class="plan-alert-content">${w}</div></div>`;
       }).join('');
     } else {
-      warningsEl.innerHTML = `
-        <div class="plan-alert success">
-          <span class="plan-alert-icon"></span>
-          <div class="plan-alert-content">
-            <div class="plan-alert-title">สามารถจบการศึกษาได้ตามแผน 4 ปี</div>
-            หน่วยกิตที่เหลือสามารถจัดลงในเทอมที่เหลือได้
-          </div>
-        </div>
-      `;
+      warningsEl.innerHTML = '';
     }
 
-    // Summary stats
-    const summaryEl = document.getElementById('plan-summary');
-    summaryEl.innerHTML = `
-      <div class="plan-summary-grid">
+    // Summary
+    document.getElementById('plan-summary').innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:16px; margin-bottom:24px;">
         <div class="plan-stat">
-          <div class="plan-stat-value">${d.remaining_elective_credits}</div>
-          <div class="plan-stat-label">หน่วยกิตเลือกเฉพาะสาขาที่เหลือ</div>
+          <div class="plan-stat-value" id="ui-rem-elec" style="font-size:24px"><span style="color:var(--kmitl-orange)">0</span> / ${d.remaining_elective_credits}</div>
+          <div class="plan-stat-label">หน่วยกิตเลือกเฉพาะสาขาที่จัดลงแผน</div>
         </div>
         <div class="plan-stat">
-          <div class="plan-stat-value">${d.remaining_free_credits}</div>
-          <div class="plan-stat-label">หน่วยกิตเลือกเสรีที่เหลือ</div>
+          <div class="plan-stat-value" id="ui-rem-free" style="font-size:24px"><span style="color:var(--kmitl-orange)">0</span> / ${d.remaining_free_credits}</div>
+          <div class="plan-stat-label">หน่วยกิตเลือกเสรีที่จัดลงแผน</div>
         </div>
         <div class="plan-stat">
-          <div class="plan-stat-value">${d.remaining_ge_credits}</div>
-          <div class="plan-stat-label">หน่วยกิต GE ที่เหลือ</div>
+          <div class="plan-stat-value" id="ui-rem-ge" style="font-size:24px"><span style="color:var(--kmitl-orange)">0</span> / ${d.remaining_ge_credits}</div>
+          <div class="plan-stat-label">หน่วยกิต GE ที่จัดลงแผน</div>
         </div>
         <div class="plan-stat">
           <div class="plan-stat-value ${d.can_graduate_on_time ? 'ok' : 'warn'}">${d.total_available_slots}</div>
-          <div class="plan-stat-label">ช่องว่างในแผน (หน่วยกิต)</div>
+          <div class="plan-stat-label">ช่องว่างทั้งหมดในแผน (หน่วยกิต)</div>
         </div>
       </div>
     `;
+
+    // Populate Unplanned Pool
+    const pool = document.getElementById('unplanned-pool');
+    pool.innerHTML = '';
+    
+    const addBlocks = (credits, label, cat) => {
+        let remaining = credits;
+        while(remaining > 0) {
+            let cr = Math.min(3, remaining);
+            let id = 'gen_' + cat + '_' + nextCustomId++;
+            pool.innerHTML += `
+              <div class="plan-course-row draggable-course sys-course" draggable="true" id="${id}" data-cat="${cat}" data-credit="${cr}" ondragstart="dragStart(event)" ondragend="dragEnd(event)" style="position:relative;">
+                <div class="plan-course-code" style="color:var(--kmitl-orange); font-weight:600;"><span style="position:absolute; left:0; color:var(--text-muted);">⋮⋮</span> ${cat.toUpperCase()}</div>
+                <div class="plan-course-name">${label}</div>
+                <span class="plan-badge deferred">รอลงตาราง</span>
+                <div class="plan-course-credit">${cr} นก.</div>
+              </div>`;
+            remaining -= cr;
+        }
+    };
+    addBlocks(d.remaining_ge_credits - sysPlannedGe, 'วิชาศึกษาทั่วไป (GE)', 'ge');
+    addBlocks(d.remaining_elective_credits - sysPlannedElective, 'วิชาเลือกเฉพาะสาขา', 'elective');
+    addBlocks(d.remaining_free_credits - sysPlannedFree, 'วิชาเลือกเสรี', 'free');
+    
+    if(pool.innerHTML === '') {
+        pool.innerHTML = '<div style="color:var(--gray-400); font-size:14px; width:100%; text-align:center;">ไม่มีวิชาที่ต้องลงเพิ่ม</div>';
+    }
 
     // Plan terms
     const termsEl = document.getElementById('plan-terms-list');
@@ -1372,11 +1575,8 @@
     }
 
     termsEl.innerHTML = d.plan_terms.map((term, i) => {
-      const usedPct = Math.round((term.core_credits / term.max_credits) * 100);
-      const hasCourses = term.core_courses.length > 0;
-
       let coursesHtml = '';
-      if (hasCourses) {
+      if (term.core_courses.length > 0) {
         coursesHtml = term.core_courses.map(c => `
           <div class="plan-course-row">
             <div class="plan-course-code">${c.code}</div>
@@ -1388,7 +1588,7 @@
           </div>
         `).join('');
       } else {
-        coursesHtml = '<div style="padding:16px 20px;color:var(--text-muted);font-size:14px;text-align:center;">ไม่มีวิชาบังคับในเทอมนี้ — สามารถลงวิชาเลือก/เสรีได้</div>';
+        coursesHtml = '<div class="empty-core-msg" style="padding:16px 20px;color:var(--text-muted);font-size:14px;text-align:center;">ไม่มีวิชาบังคับในเทอมนี้ — สามารถลงวิชาเลือก/เสรีได้</div>';
       }
 
       return `
@@ -1401,19 +1601,31 @@
             <div style="display:flex;align-items:center;gap:16px;">
               <div class="plan-term-meta">
                 <span>บังคับ: <strong>${term.core_credits} นก.</strong></span>
-                <span>ว่าง: <strong style="color:${term.available_credits > 0 ? 'var(--success)' : 'var(--danger)'}">${term.available_credits} นก.</strong></span>
+                <span>ว่าง: <strong id="term-avail-${i}" style="color:${term.available_credits > 0 ? 'var(--success)' : 'var(--danger)'}">${term.available_credits} นก.</strong></span>
               </div>
               <div class="plan-term-chevron" id="plan-chev-${i}">▼</div>
             </div>
           </div>
-          <div class="plan-term-body" id="plan-body-${i}">
-            ${coursesHtml}
+          <div class="plan-term-body show" id="plan-body-${i}">
+            <div class="plan-term-dropzone" id="dropzone-${i}" data-idx="${i}" ondragover="allowDrop(event)" ondragleave="dragLeave(event)" ondrop="drop(event, ${i})">
+                ${coursesHtml}
+                ${(term.draggable_courses || []).map(c => `
+                <div class="plan-course-row draggable-course sys-course" draggable="true" id="sys_${c.code}_${i}" data-cat="${c.category || 'core'}" data-credit="${c.credit}" ondragstart="dragStart(event)" ondragend="dragEnd(event)" style="position:relative;">
+                  <div class="plan-course-code" style="color:var(--kmitl-orange); font-weight:600;"><span style="position:absolute; left:0; color:var(--text-muted);">⋮⋮</span> ${c.code}</div>
+                  <div class="plan-course-name">${c.name_en || c.name_th}</div>
+                  <span class="plan-badge ${c.is_deferred ? 'deferred' : 'required'}">
+                    ${c.is_deferred ? 'เลือกลง' : (c.category==='ge'?'ศึกษาทั่วไป':(c.category==='elective'?'เลือกเฉพาะ':'เลือกเสรี'))}
+                  </span>
+                  <div class="plan-course-credit">${c.credit} นก.</div>
+                </div>
+                `).join('')}
+            </div>
+            <button class="btn-add-course" onclick="openAddCourseModal(${i})">+ เพิ่มวิชาอื่นๆ</button>
             <div class="plan-term-footer">
-              <span>หน่วยกิตที่ใช้: <strong>${term.core_credits}</strong> / ${term.max_credits}</span>
+              <span>หน่วยกิตรวม (รวมที่ลากมา): <strong id="term-total-${i}">${term.core_credits}</strong> / ${term.max_credits}</span>
               <div class="plan-credits-bar">
-                <div class="plan-credits-fill" style="width:${usedPct}%"></div>
+                <div class="plan-credits-fill" id="term-fill-${i}" style="width:${(term.core_credits / term.max_credits)*100}%"></div>
               </div>
-              <span>เหลือลงเพิ่มได้: <strong style="color:var(--success)">${term.available_credits}</strong> นก.</span>
             </div>
           </div>
         </div>
@@ -1431,6 +1643,180 @@
     }
   }
 
+  // ===== DRAG AND DROP LOGIC =====
+  function dragStart(e) {
+      dragCourseId = e.target.id;
+      e.target.classList.add('dragging');
+  }
+  function dragEnd(e) {
+      e.target.classList.remove('dragging');
+  }
+  function allowDrop(e) {
+      e.preventDefault();
+      const zone = e.target.closest('.plan-term-dropzone, .unplanned-pool');
+      if(zone) zone.classList.add('drag-over');
+  }
+  function dragLeave(e) {
+      const zone = e.target.closest('.plan-term-dropzone, .unplanned-pool');
+      if(zone) zone.classList.remove('drag-over');
+  }
+  function drop(e, termIdx) {
+      e.preventDefault();
+      const zone = e.target.closest('.plan-term-dropzone, .unplanned-pool');
+      if(zone) zone.classList.remove('drag-over');
+      
+      if(!dragCourseId) return;
+      const el = document.getElementById(dragCourseId);
+      if(!el) return;
+      
+      // If pool was empty msg
+      const pool = document.getElementById('unplanned-pool');
+      if(pool.querySelector('div[style*="ไม่มีวิชา"]')) {
+          pool.innerHTML = '';
+      }
+      
+      if(termIdx === 'pool') {
+          pool.appendChild(el);
+      } else {
+          const dropzone = document.getElementById(`dropzone-${termIdx}`);
+          const emptyMsg = dropzone.querySelector('.empty-core-msg');
+          if(emptyMsg) emptyMsg.style.display = 'none';
+          dropzone.appendChild(el);
+      }
+      
+      recalculateAllTerms();
+  }
+  
+
+  function recalculateAllTerms() {
+      if(!planTermData) return;
+      
+      let poolGe = 0, poolElective = 0, poolFree = 0;
+      const pool = document.getElementById('unplanned-pool');
+      if(pool) {
+          pool.querySelectorAll('.draggable-course').forEach(el => {
+              const cr = parseInt(el.dataset.credit || 0);
+              const cat = el.dataset.cat;
+              if(cat === 'ge') poolGe += cr;
+              if(cat === 'elective') poolElective += cr;
+              if(cat === 'free') poolFree += cr;
+          });
+      }
+      
+      // Calculate custom added courses (which bypass the pool)
+      let customGe = 0, customElective = 0, customFree = 0;
+      planTermData.forEach((term, i) => {
+          const dropzone = document.getElementById(`dropzone-${i}`);
+          if(!dropzone) return;
+          dropzone.querySelectorAll('.custom-course').forEach(el => {
+              const cr = parseInt(el.dataset.credit || 0);
+              const cat = el.dataset.cat;
+              if(cat === 'custom-ge') customGe += cr;
+              if(cat === 'custom-elective') customElective += cr;
+              if(cat === 'custom-free' || cat === 'custom') customFree += cr;
+          });
+      });
+      
+      poolGe -= customGe;
+      poolElective -= customElective;
+      poolFree -= customFree;
+      
+      // Spillover logic: if they take extra GE, it counts as Free Elective
+      if(poolGe < 0) {
+          poolFree += poolGe; // poolGe is negative, so this reduces poolFree
+          poolGe = 0;
+      }
+      if(poolElective < 0) {
+          poolFree += poolElective;
+          poolElective = 0;
+      }
+      if(poolFree < 0) {
+          poolFree = 0; // cannot go below 0
+      }
+      
+      const uiGe = document.getElementById('ui-rem-ge');
+      const uiElec = document.getElementById('ui-rem-elec');
+      const uiFree = document.getElementById('ui-rem-free');
+      
+      if(uiGe) uiGe.innerHTML = `<span style="color:var(--kmitl-orange)">${baselineStats.ge - poolGe}</span> / ${baselineStats.ge}`;
+      if(uiElec) uiElec.innerHTML = `<span style="color:var(--kmitl-orange)">${baselineStats.elective - poolElective}</span> / ${baselineStats.elective}`;
+      if(uiFree) uiFree.innerHTML = `<span style="color:var(--kmitl-orange)">${baselineStats.free - poolFree}</span> / ${baselineStats.free}`;
+      
+      planTermData.forEach((term, i) => {
+          const dropzone = document.getElementById(`dropzone-${i}`);
+          if(!dropzone) return;
+          
+          let draggedCredits = 0;
+          dropzone.querySelectorAll('.draggable-course').forEach(el => {
+              draggedCredits += parseInt(el.dataset.credit || 0);
+          });
+          
+          const total = term.core_credits + draggedCredits;
+          const avail = term.max_credits - total;
+          
+          const totalEl = document.getElementById(`term-total-${i}`);
+          const availEl = document.getElementById(`term-avail-${i}`);
+          const fill = document.getElementById(`term-fill-${i}`);
+          
+          if(totalEl) {
+              totalEl.textContent = total;
+              totalEl.style.color = total > term.max_credits ? 'var(--danger)' : 'var(--navy-800)';
+          }
+          if(availEl) {
+              availEl.textContent = avail + ' นก.';
+              availEl.style.color = avail >= 0 ? 'var(--success)' : 'var(--danger)';
+          }
+          if(fill) {
+              fill.style.width = Math.min((total / term.max_credits) * 100, 100) + '%';
+              fill.style.background = total > term.max_credits ? 'var(--danger)' : 'var(--kmitl-orange)';
+          }
+      });
+  }
+
+  // ===== CUSTOM COURSE MODAL =====
+  function openAddCourseModal(idx) {
+      document.getElementById('add-course-term-idx').value = idx;
+      document.getElementById('add-course-name').value = '';
+      document.getElementById('add-course-cat').disabled = false;
+      document.getElementById('add-course-modal').classList.add('show');
+  }
+  function closeAddCourseModal() {
+      document.getElementById('add-course-modal').classList.remove('show');
+  }
+  function confirmAddCourse() {
+      const idx = document.getElementById('add-course-term-idx').value;
+      const name = document.getElementById('add-course-name').value.trim();
+      const credit = parseInt(document.getElementById('add-course-credit').value);
+      const catSelect = document.getElementById('add-course-cat');
+      const cat = catSelect.value;
+      
+      if(!name) { alert('กรุณาระบุชื่อวิชา'); return; }
+      
+      const dropzone = document.getElementById(`dropzone-${idx}`);
+      const emptyMsg = dropzone.querySelector('.empty-core-msg');
+      if(emptyMsg) emptyMsg.style.display = 'none';
+      
+      const id = 'custom_' + nextCustomId++;
+      const html = `
+          <div class="plan-course-row draggable-course sys-course custom-course" draggable="true" id="${id}" data-cat="${cat}" data-credit="${credit}" ondragstart="dragStart(event)" ondragend="dragEnd(event)" style="position:relative; border-left:4px solid var(--success);">
+            <div class="plan-course-code" style="color:var(--success); font-weight:600;"><span style="position:absolute; left:0; color:var(--text-muted);">⋮⋮</span> เพิ่มเอง</div>
+            <div class="plan-course-name">${name}</div>
+            <span class="plan-badge deferred" style="background:#DCFCE7; color:#166534; border:1px solid #86EFAC;">เพิ่มพิเศษ</span>
+            <div class="plan-course-credit">${credit} นก.</div>
+            <button class="course-del-btn" onclick="removeCustomCourse('${id}')" style="position:static; opacity:1; margin-left:8px; font-size:14px; padding:4px;">ลบ</button>
+          </div>
+      `;
+      dropzone.insertAdjacentHTML('beforeend', html);
+      closeAddCourseModal();
+      catSelect.disabled = false;
+      recalculateAllTerms();
+  }
+  function removeCustomCourse(id) {
+      const el = document.getElementById(id);
+      if(el) el.remove();
+      recalculateAllTerms();
+  }
+
   function togglePlanTerm(idx) {
     const body = document.getElementById(`plan-body-${idx}`);
     const chev = document.getElementById(`plan-chev-${idx}`);
@@ -1443,7 +1829,88 @@
     }
   }
 
+  // ===== AUTOCOMPLETE LOGIC =====
+  let debounceTimer;
+  document.addEventListener('DOMContentLoaded', function() {
+      const courseInput = document.getElementById('add-course-name');
+      if(courseInput) {
+          courseInput.addEventListener('input', function(e) {
+              clearTimeout(debounceTimer);
+              document.getElementById('add-course-cat').disabled = false;
+              const val = e.target.value.trim();
+              const resultsBox = document.getElementById('autocomplete-results');
+              if(val.length < 2) {
+                  resultsBox.style.display = 'none';
+                  return;
+              }
+              debounceTimer = setTimeout(() => {
+                  fetch('/api/curriculum/courses?search=' + encodeURIComponent(val))
+                      .then(r => r.json())
+                      .then(data => {
+                          if(!data || data.length === 0) {
+                              resultsBox.style.display = 'none';
+                              return;
+                          }
+                          resultsBox.innerHTML = data.slice(0, 10).map(c => {
+                              let catValue = 'custom-elective';
+                              if (c.course_code.startsWith('045') || c.course_code.startsWith('145') || c.course_code.startsWith('90')) {
+                                  catValue = 'custom-ge';
+                              }
+                              return `<div class="autocomplete-item" onclick="selectAutocomplete('${c.course_code}', '${c.course_name_th}', '${c.course_name_en || ''}', ${c.credit}, '${catValue}')">
+                                   <strong>${c.course_code}</strong> ${c.course_name_en || c.course_name_th} (${c.credit} นก.)
+                                </div>`;
+                          }).join('');
+                          resultsBox.style.display = 'block';
+                      })
+                      .catch(e => console.error(e));
+              }, 300);
+          });
+      }
+  });
+
+  function selectAutocomplete(code, nameTh, nameEn, credit, catValue) {
+      document.getElementById('add-course-name').value = `${code} ${nameEn || nameTh}`;
+      document.getElementById('add-course-credit').value = credit;
+      const catSelect = document.getElementById('add-course-cat');
+      catSelect.value = catValue;
+      catSelect.disabled = true;
+      document.getElementById('autocomplete-results').style.display = 'none';
+  }
+
 </script>
+<!-- Add Custom Course Modal -->
+<div class="add-course-modal-overlay" id="add-course-modal">
+  <div class="add-course-modal">
+    <h3 style="margin-top:0;font-family:'Prompt',sans-serif;color:var(--navy-800);">เพิ่มวิชาอื่นๆ</h3>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px;">
+      ระบุชื่อวิชาและหน่วยกิตที่ต้องการจัดลงแผน
+    </p>
+    <input type="hidden" id="add-course-term-idx">
+    <div style="position:relative; margin-bottom:12px;">
+      <input type="text" id="add-course-name" placeholder="พิมพ์ชื่อหรือรหัสวิชาเพื่อค้นหา..." style="padding:10px;border:1px solid var(--border);border-radius:6px;font-family:'Prompt',sans-serif;width:100%;box-sizing:border-box;">
+      <div id="autocomplete-results" class="autocomplete-results"></div>
+    </div>
+    
+    <select id="add-course-cat" style="padding:10px;border:1px solid var(--border);border-radius:6px;margin-bottom:12px;font-family:'Prompt',sans-serif;width:100%;box-sizing:border-box;">
+      <option value="custom-free" selected>หมวดวิชาเลือกเสรี / อื่นๆ</option>
+      <option value="custom-ge">หมวดวิชาศึกษาทั่วไป (GE)</option>
+      <option value="custom-elective">หมวดวิชาเลือกเฉพาะสาขา</option>
+    </select>
+    
+    <select id="add-course-credit" style="padding:10px;border:1px solid var(--border);border-radius:6px;margin-bottom:20px;font-family:'Prompt',sans-serif;width:100%;box-sizing:border-box;">
+      <option value="1">1 หน่วยกิต</option>
+      <option value="2">2 หน่วยกิต</option>
+      <option value="3" selected>3 หน่วยกิต</option>
+      <option value="4">4 หน่วยกิต</option>
+      <option value="6">6 หน่วยกิต</option>
+    </select>
+    <div style="display:flex;gap:12px;justify-content:flex-end;">
+      <button onclick="closeAddCourseModal()" style="padding:8px 16px;border:1px solid var(--border);background:transparent;border-radius:6px;cursor:pointer;font-family:'Prompt',sans-serif;">ยกเลิก</button>
+      <button onclick="confirmAddCourse()" style="padding:8px 16px;border:none;background:var(--kmitl-orange);color:#fff;border-radius:6px;cursor:pointer;font-family:'Prompt',sans-serif;">เพิ่มวิชา</button>
+    </div>
+  </div>
+</div>
+
 <!-- Withdrawal Impact Modal -->
 <style>
   .withdraw-modal-overlay {
@@ -1482,7 +1949,78 @@
   }
   .impact-course-list { margin-top: 12px; padding-left: 20px; }
   .impact-course-list li { margin-bottom: 4px; }
-</style>
+
+    /* ===== DRAG AND DROP & CUSTOM COURSES ===== */
+    .unplanned-pool {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 16px; background: var(--gray-50); border: 2px dashed var(--gray-300);
+      border-radius: var(--radius); min-height: 80px; margin-bottom: 24px;
+      transition: background 0.2s;
+    }
+    .unplanned-pool.drag-over { background: var(--primary-light); border-color: var(--kmitl-orange); }
+    
+    .draggable-course {
+      cursor: grab;
+      border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 14px; background: #fff;
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 13px; min-width: 140px; max-width: 200px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      position: relative;
+    }
+    .draggable-course:active { cursor: grabbing; transform: scale(0.98); }
+    .draggable-course.dragging { opacity: 0.5; }
+    .draggable-course[data-cat="ge"] { border-left: 4px solid var(--gray-400); }
+    .draggable-course[data-cat="elective"] { border-left: 4px solid #D97706; }
+    .draggable-course[data-cat="free"] { border-left: 4px solid #DB2777; }
+    .draggable-course.custom-course { border-left: 4px solid var(--success); }
+    
+    .course-title-drag { font-weight: 600; font-family: 'Prompt', sans-serif; color: var(--navy-800); word-break: break-word; line-height: 1.3;}
+    .course-cred-drag { font-size: 12px; color: var(--text-muted); }
+    .course-del-btn {
+       position: absolute; top: 4px; right: 4px; font-size: 10px;
+       color: var(--danger); background: transparent; border: none; cursor: pointer;
+       opacity: 0; transition: opacity 0.2s;
+    }
+    .draggable-course:hover .course-del-btn { opacity: 1; }
+    
+    .plan-term-dropzone {
+      min-height: 60px; padding: 12px;
+      transition: background 0.2s;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .plan-term-dropzone.drag-over {
+      background: var(--primary-light);
+      outline: 2px dashed var(--kmitl-orange);
+      outline-offset: -2px; border-radius: 6px;
+    }
+
+    .btn-add-course {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 100%; padding: 8px; margin-top: 8px;
+      background: transparent; border: 1px dashed var(--gray-300);
+      border-radius: 6px; color: var(--gray-500); cursor: pointer;
+      font-family: 'Prompt', sans-serif; font-size: 13px; font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-add-course:hover { background: var(--gray-50); color: var(--kmitl-orange); border-color: var(--kmitl-orange); }
+
+    /* Modal for Add Custom Course */
+    .add-course-modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      display: none; justify-content: center; align-items: center;
+      z-index: 1000; padding: 20px; backdrop-filter: blur(4px);
+    }
+    .add-course-modal-overlay.show { display: flex; }
+    .add-course-modal {
+      background: #fff; border-radius: var(--radius); width: 100%; max-width: 400px;
+      box-shadow: var(--shadow-md); display: flex; flex-direction: column;
+      padding: 24px;
+    }
+
+  </style>
 
 <div class="withdraw-modal-overlay" id="withdraw-modal">
   <div class="withdraw-modal">

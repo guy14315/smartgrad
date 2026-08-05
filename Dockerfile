@@ -23,6 +23,8 @@ COPY --chown=app:app main.py parser.py dashboard.py database.py models.py seed.p
 COPY --chown=app:app routers/ ./routers/
 COPY --chown=app:app templates/ ./templates/
 
+RUN chown -R app:app /app
+
 ENV PYTHONUNBUFFERED=1 \
     PORT=8080
 

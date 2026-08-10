@@ -13,11 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database import get_db
-from models import Advisor, AdvisorCredential, AdvisorNote, Student, Transcript, TranscriptCourse
+from config import NON_PASSING_GRADES
+from services import compute_credits, get_active_transcript
+from models import Advisor, AdvisorCredential, AdvisorNote, Student, Transcript
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/advisors", tags=["Advisors"])
-
-NON_PASSING = {"F", "W", "WU", "U"}
 
 
 # ---------------------------------------------------------------------------
@@ -65,23 +68,6 @@ def _require_advisor_login(request: Request, advisor_id: str) -> None:
     """อนุญาตให้อาจารย์ดูได้เฉพาะข้อมูลของบัญชีตนเอง"""
     if request.session.get("advisor_id") != advisor_id:
         raise HTTPException(status_code=401, detail="กรุณาเข้าสู่ระบบด้วยบัญชีอาจารย์ที่ถูกต้อง")
-
-
-async def _get_active_transcript(student_id: str, db: AsyncSession) -> Transcript | None:
-    result = await db.execute(
-        select(Transcript)
-        .options(selectinload(Transcript.courses))
-        .where(Transcript.student_id == student_id, Transcript.is_active == True)
-        .order_by(Transcript.uploaded_at.desc())
-    )
-    return result.scalars().first()
-
-
-def _compute_credits(courses: list[TranscriptCourse]) -> tuple[int, int]:
-    """คืน (passed_credits, total_attempted_credits)"""
-    passed = sum(c.credit for c in courses if c.grade and c.grade.upper() not in NON_PASSING)
-    total = sum(c.credit for c in courses)
-    return passed, total
 
 
 # ---------------------------------------------------------------------------
@@ -133,33 +119,32 @@ async def get_advisor(advisor_id: str, request: Request, db: AsyncSession = Depe
 
 @router.get("/{advisor_id}/students", summary="รายชื่อนักศึกษาในความดูแล พร้อมสถานะ Transcript")
 async def list_students(advisor_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    ดูรายชื่อนักศึกษาในความดูแลทั้งหมด พร้อม:
-    - สถานะการอัปโหลด Transcript (มี/ยังไม่มี)
-    - วันที่อัปโหลดล่าสุด
-    - หน่วยกิตผ่าน vs หน่วยกิตที่หลักสูตรกำหนด
-    ครอบคลุม requirement: ทราบวันที่อัปโหลดล่าสุด, ดูรายชื่อพร้อมสถานะ
-    """
     _require_advisor_login(request, advisor_id)
     await _get_advisor_or_404(advisor_id, db)
     result = await db.execute(
-        select(Student).where(Student.advisor_id == advisor_id)
+        select(Student)
+        .options(
+            selectinload(Student.transcripts).selectinload(Transcript.courses)
+        )
+        .where(Student.advisor_id == advisor_id)
     )
-    students = result.scalars().all()
+    students = result.scalars().unique().all()
 
     response = []
     for s in students:
-        transcript = await _get_active_transcript(s.student_id, db)
-        # หน้าอาจารย์เห็นเฉพาะนักศึกษาที่อัปโหลด Transcript แล้ว
-        if transcript:
-            passed, _ = _compute_credits(transcript.courses)
+        active = next(
+            (t for t in sorted(s.transcripts, key=lambda t: t.uploaded_at, reverse=True) if t.is_active),
+            None,
+        )
+        if active:
+            passed, _ = compute_credits(active.courses)
             response.append({
                 "student_id": s.student_id,
                 "name": s.name,
                 "has_transcript": True,
-                "last_uploaded_at": transcript.uploaded_at,
+                "last_uploaded_at": active.uploaded_at,
                 "passed_credits": passed,
-                "courses_in_transcript": len(transcript.courses),
+                "courses_in_transcript": len(active.courses),
             })
     return {"advisor_id": advisor_id, "students": response, "total": len(response)}
 
@@ -188,19 +173,19 @@ async def get_student_report(
     if not student:
         raise HTTPException(status_code=404, detail="ไม่พบนักศึกษา หรือนักศึกษาไม่ได้อยู่ในความดูแลของอาจารย์ท่านนี้")
 
-    transcript = await _get_active_transcript(student_id, db)
+    transcript = await get_active_transcript(student_id, db)
     if not transcript:
         return {"student_id": student_id, "name": student.name, "message": "ยังไม่มี Transcript"}
 
     passed_courses = [
         {"code": tc.course_code, "name": tc.course_name_raw, "credit": tc.credit, "grade": tc.grade}
         for tc in transcript.courses
-        if tc.grade and tc.grade.upper() not in NON_PASSING
+        if tc.grade and tc.grade.upper() not in NON_PASSING_GRADES
     ]
     failed_courses = [
         {"code": tc.course_code, "name": tc.course_name_raw, "credit": tc.credit, "grade": tc.grade}
         for tc in transcript.courses
-        if tc.grade and tc.grade.upper() in NON_PASSING
+        if tc.grade and tc.grade.upper() in NON_PASSING_GRADES
     ]
 
     passed_credits = sum(c["credit"] for c in passed_courses)
@@ -224,21 +209,26 @@ async def ready_to_graduate(
     min_credits: int = 120,
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    นักศึกษาที่ผ่านหน่วยกิตครบ min_credits (ค่าเริ่มต้น 120)
-    ครอบคลุม requirement: ทราบรายชื่อนักศึกษาที่หน่วยกิตครบตามเงื่อนไข
-    """
     _require_advisor_login(request, advisor_id)
     await _get_advisor_or_404(advisor_id, db)
-    result = await db.execute(select(Student).where(Student.advisor_id == advisor_id))
-    students = result.scalars().all()
+    result = await db.execute(
+        select(Student)
+        .options(
+            selectinload(Student.transcripts).selectinload(Transcript.courses)
+        )
+        .where(Student.advisor_id == advisor_id)
+    )
+    students = result.scalars().unique().all()
 
     ready = []
     for s in students:
-        transcript = await _get_active_transcript(s.student_id, db)
-        if not transcript:
+        active = next(
+            (t for t in sorted(s.transcripts, key=lambda t: t.uploaded_at, reverse=True) if t.is_active),
+            None,
+        )
+        if not active:
             continue
-        passed_credits, _ = _compute_credits(transcript.courses)
+        passed_credits, _ = compute_credits(active.courses)
         if passed_credits >= min_credits:
             ready.append({
                 "student_id": s.student_id,
@@ -259,15 +249,16 @@ async def ready_to_graduate(
 
 @router.get("/{advisor_id}/summary", summary="รายงานภาพรวมนักศึกษาในความดูแล")
 async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = Depends(get_db)):
-    """
-    ภาพรวมทั้งหมดของนักศึกษาในความดูแล:
-    - จำนวนทั้งหมด / มี transcript / ยังไม่มี
-    ครอบคลุม requirement: ดูรายงานสรุปภาพรวมของนักศึกษาในความดูแล
-    """
     _require_advisor_login(request, advisor_id)
     await _get_advisor_or_404(advisor_id, db)
-    result = await db.execute(select(Student).where(Student.advisor_id == advisor_id))
-    students = result.scalars().all()
+    result = await db.execute(
+        select(Student)
+        .options(
+            selectinload(Student.transcripts).selectinload(Transcript.courses)
+        )
+        .where(Student.advisor_id == advisor_id)
+    )
+    students = result.scalars().unique().all()
 
     total = len(students)
     with_transcript = 0
@@ -275,10 +266,13 @@ async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = 
     total_passed_credits = 0
 
     for s in students:
-        transcript = await _get_active_transcript(s.student_id, db)
-        if transcript:
+        active = next(
+            (t for t in sorted(s.transcripts, key=lambda t: t.uploaded_at, reverse=True) if t.is_active),
+            None,
+        )
+        if active:
             with_transcript += 1
-            passed, _ = _compute_credits(transcript.courses)
+            passed, _ = compute_credits(active.courses)
             total_passed_credits += passed
         else:
             without_transcript += 1
@@ -327,7 +321,7 @@ async def send_note(
     student_result = await db.execute(
         select(Student).where(Student.student_id == student_id, Student.advisor_id == advisor_id)
     )
-    if not student_result.scalars().first() or not await _get_active_transcript(student_id, db):
+    if not student_result.scalars().first() or not await get_active_transcript(student_id, db):
         raise HTTPException(status_code=404, detail="ไม่พบนักศึกษาที่อัปโหลด Transcript ในความดูแล")
 
     recipient = f"{student_id}@kmitl.ac.th"

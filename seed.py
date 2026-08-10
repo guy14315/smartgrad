@@ -3,10 +3,13 @@
 อ่านและรันสคริปต์ SQL จากไฟล์ init.sql เพื่อสร้าง Schema และ Seed ข้อมูลรายวิชา
 """
 
+import logging
 from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from models import Course
+
+logger = logging.getLogger(__name__)
 
 INIT_SQL_PATH = Path(__file__).parent / "init.sql"
 
@@ -18,7 +21,7 @@ async def seed_curriculum(session: AsyncSession) -> None:
     has_curriculum = result.first() is not None
 
     if not INIT_SQL_PATH.exists():
-        print(f"[seed] Warning: {INIT_SQL_PATH} not found.")
+        logger.warning(f"[seed] Warning: {INIT_SQL_PATH} not found.")
         return
 
     sql_script = INIT_SQL_PATH.read_text(encoding="utf-8")
@@ -38,7 +41,12 @@ async def seed_curriculum(session: AsyncSession) -> None:
         )
         if has_curriculum and not is_advisor_seed:
             continue
-        await session.execute(text(statement))
+        try:
+            await session.execute(text(statement))
+        except Exception as e:
+            logger.error(f"[seed] Failed to execute SQL statement: {e}")
+            logger.debug(f"[seed] Statement: {statement[:200]}")
+            continue
 
     await session.commit()
-    print(f"[seed] Executed SQL statements from {INIT_SQL_PATH.name} successfully.")
+    logger.info(f"[seed] Executed SQL statements from {INIT_SQL_PATH.name} successfully.")

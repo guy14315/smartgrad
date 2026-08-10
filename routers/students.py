@@ -1,7 +1,6 @@
 """API router: นักศึกษา – transcript upload, dashboard, planning, simulation"""
 
 from datetime import datetime
-from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -14,16 +13,20 @@ from dashboard import compute_dashboard
 from models import (
     Course,
     Advisor,
-    Prerequisite,
     Student,
     Transcript,
     TranscriptCourse,
+    Prerequisite,
 )
 from parser import parse_transcript
+from config import NON_PASSING_GRADES, COURSE_CODE_PATTERN, MAX_UPLOAD_SIZE_BYTES
+from services import get_active_transcript, load_curriculum_dict, transcript_courses_to_list
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/students", tags=["Students"])
 
-NON_PASSING = {"F", "W", "WU", "U"}
 
 
 # ---------------------------------------------------------------------------
@@ -79,63 +82,6 @@ async def _get_student_or_404(student_id: str, db: AsyncSession) -> Student:
     return student
 
 
-async def _get_active_transcript(student_id: str, db: AsyncSession) -> Transcript | None:
-    result = await db.execute(
-        select(Transcript)
-        .options(selectinload(Transcript.courses))
-        .where(Transcript.student_id == student_id, Transcript.is_active == True)
-        .order_by(Transcript.uploaded_at.desc())
-    )
-    return result.scalars().first()
-
-
-async def _load_curriculum_dict(db: AsyncSession, curriculum_id: str | None = None) -> dict:
-    """โหลด curriculum จาก DB แล้ว format ให้ dashboard.compute_dashboard รับได้"""
-    stmt = select(Course).options(selectinload(Course.prerequisites))
-    if curriculum_id:
-        stmt = stmt.where(Course.curriculum_id == curriculum_id)
-    stmt = stmt.order_by(Course.year, Course.semester)
-    
-    result = await db.execute(stmt)
-    courses = result.scalars().all()
-
-    terms: dict[tuple, list] = {}
-    for c in courses:
-        key = (c.year, c.semester, c.plan_type)
-        terms.setdefault(key, []).append(c)
-
-    curriculum_list = []
-    for (year, semester, plan_type), term_courses in sorted(terms.items(), key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or "")):
-        curriculum_list.append({
-            "year": year,
-            "semester": semester,
-            "plan_type": plan_type or "",
-            "courses": [
-                {
-                    "course_code": c.course_code,
-                    "course_name_th": c.course_name_th,
-                    "course_name_en": c.course_name_en,
-                    "credit": c.credit_str or str(c.credit),
-                    "url": c.url,
-                    "prerequisites": [p.prereq_code for p in c.prerequisites],
-                    "prereq_source": c.prereq_source,
-                }
-                for c in term_courses
-            ],
-        })
-    return {"curriculum": curriculum_list}
-
-
-def _transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:
-    return [
-        {
-            "code": tc.course_code,
-            "name_th": tc.course_name_raw,
-            "credit": tc.credit,
-            "grade": tc.grade,
-        }
-        for tc in tc_list
-    ]
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +146,13 @@ async def upload_transcript(
     if file.content_type not in ("application/pdf", "application/octet-stream"):
         raise HTTPException(status_code=400, detail="กรุณาอัปโหลดไฟล์ .pdf เท่านั้น")
 
+    # Check file size
+    file.file.seek(0, 2)  # seek to end
+    file_size = file.file.tell()
+    file.file.seek(0)  # seek back to start
+    if file_size > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail=f"ไฟล์มีขนาดใหญ่เกินไป (สูงสุด {MAX_UPLOAD_SIZE_BYTES // (1024*1024)} MB)")
+
     # parse PDF
     parsed_courses = parse_transcript(file.file)
 
@@ -263,15 +216,15 @@ async def get_dashboard(student_id: str, db: AsyncSession = Depends(get_db)):
     - รายวิชาที่เหลือพร้อมสถานะ Prerequisite
     """
     await _get_student_or_404(student_id, db)
-    transcript = await _get_active_transcript(student_id, db)
+    transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript ในระบบ กรุณาอัปโหลดก่อน")
 
-    parsed_courses = _transcript_courses_to_list(transcript.courses)
+    parsed_courses = transcript_courses_to_list(transcript.courses)
     
     # ดึง student มาเพื่อดู curriculum_id
     student = await _get_student_or_404(student_id, db)
-    curriculum = await _load_curriculum_dict(db, curriculum_id=student.curriculum_id)
+    curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     return compute_dashboard(parsed_courses, curriculum)
 
 
@@ -279,14 +232,14 @@ async def get_dashboard(student_id: str, db: AsyncSession = Depends(get_db)):
 async def get_transcript_courses(student_id: str, db: AsyncSession = Depends(get_db)):
     """ดูรายการวิชาที่ระบบ parse ได้ – สามารถตรวจสอบความถูกต้องก่อนประมวลผล"""
     await _get_student_or_404(student_id, db)
-    transcript = await _get_active_transcript(student_id, db)
+    transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
     return {
         "transcript_id": transcript.id,
         "filename": transcript.filename,
         "uploaded_at": transcript.uploaded_at,
-        "courses": _transcript_courses_to_list(transcript.courses),
+        "courses": transcript_courses_to_list(transcript.courses),
     }
 
 
@@ -299,7 +252,7 @@ async def override_course_grade(
 ):
     """แก้ไขเกรดของวิชาที่ระบบ parse ผิด – is_overridden จะถูก set เป็น True"""
     await _get_student_or_404(student_id, db)
-    transcript = await _get_active_transcript(student_id, db)
+    transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
 
@@ -321,14 +274,14 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
     - เรียงตามลำดับ year/semester ของหลักสูตร
     """
     await _get_student_or_404(student_id, db)
-    transcript = await _get_active_transcript(student_id, db)
+    transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
 
     passed_codes = {
         tc.course_code
         for tc in transcript.courses
-        if tc.grade and tc.grade.upper() not in NON_PASSING
+        if tc.grade and tc.grade.upper() not in NON_PASSING_GRADES
     }
 
     result = await db.execute(
@@ -369,11 +322,15 @@ async def simulate_progress(
     ช่วย requirement: นักศึกษาต้องสามารถจำลองสถานะความก้าวหน้าโดยนับรวมรายวิชาที่กำลังศึกษา
     """
     await _get_student_or_404(student_id, db)
-    transcript = await _get_active_transcript(student_id, db)
+    for code in body.current_course_codes:
+        if not COURSE_CODE_PATTERN.match(code):
+            raise HTTPException(status_code=400, detail=f"รหัสวิชาไม่ถูกต้อง: {code}")
+
+    transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
 
-    parsed_courses = _transcript_courses_to_list(transcript.courses)
+    parsed_courses = transcript_courses_to_list(transcript.courses)
 
     # inject simulated courses with grade "S" (passing)
     existing_codes = {c["code"] for c in parsed_courses}
@@ -392,7 +349,7 @@ async def simulate_progress(
             })
 
     student = await _get_student_or_404(student_id, db)
-    curriculum = await _load_curriculum_dict(db, curriculum_id=student.curriculum_id)
+    curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     dashboard = compute_dashboard(parsed_courses, curriculum)
     dashboard["simulated"] = True
     dashboard["simulated_courses"] = body.current_course_codes

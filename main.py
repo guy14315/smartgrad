@@ -14,62 +14,26 @@ REST API:
 """
 
 import json
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from dashboard import compute_dashboard, compute_study_plan
 from database import AsyncSessionLocal, engine
-from models import Base, Course
+from models import Base
 from parser import parse_student_info, parse_transcript
 from routers import advisors, curriculum, students
 from seed import seed_curriculum
+from services import load_curriculum_dict
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Helper: load curriculum dict from DB
-# ---------------------------------------------------------------------------
-
-async def _load_curriculum_dict_from_db() -> dict:
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            select(Course)
-            .options(selectinload(Course.prerequisites))
-            .order_by(Course.year, Course.semester)
-        )
-        all_courses = result.scalars().all()
-
-    terms: dict[tuple, list] = {}
-    for c in all_courses:
-        key = (c.year, c.semester, c.plan_type)
-        terms.setdefault(key, []).append(c)
-
-    return {
-        "curriculum": [
-            {
-                "year": k[0],
-                "semester": k[1],
-                "plan_type": k[2] or "",
-                "courses": [
-                    {
-                        "course_code": c.course_code,
-                        "course_name_th": c.course_name_th,
-                        "course_name_en": c.course_name_en,
-                        "credit": c.credit_str or str(c.credit),
-                        "url": c.url,
-                        "prerequisites": [p.prereq_code for p in c.prerequisites],
-                    }
-                    for c in v
-                ],
-            }
-            for k, v in sorted(terms.items(), key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or ""))
-        ]
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -102,9 +66,24 @@ app = FastAPI(
 )
 app.add_middleware(
     SessionMiddleware,
-    secret_key=__import__("os").environ.get("SESSION_SECRET", "smartgrad-demo-session-secret"),
-    https_only=__import__("os").environ.get("SESSION_HTTPS_ONLY", "false").lower() == "true",
+    secret_key=os.environ.get("SESSION_SECRET", "smartgrad-demo-session-secret"),
+    https_only=os.environ.get("SESSION_HTTPS_ONLY", "false").lower() == "true",
 )
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception")
+    return JSONResponse(status_code=500, content={"error": "เกิดข้อผิดพลาดภายในระบบ"})
 
 templates = Jinja2Templates(directory="templates")
 
@@ -112,6 +91,11 @@ templates = Jinja2Templates(directory="templates")
 # ---------------------------------------------------------------------------
 # HTML routes
 # ---------------------------------------------------------------------------
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "ok"}
+
 
 @app.get("/", include_in_schema=False)
 def home(request: Request):
@@ -152,7 +136,8 @@ async def confirm_courses(request: Request):
     except Exception:
         return JSONResponse(status_code=400, content={"error": "ข้อมูลไม่ถูกต้อง"})
 
-    curriculum_dict = await _load_curriculum_dict_from_db()
+    async with AsyncSessionLocal() as session:
+        curriculum_dict = await load_curriculum_dict(session)
     dashboard = compute_dashboard(courses, curriculum_dict)
     return JSONResponse(content=dashboard)
 
@@ -167,7 +152,8 @@ async def study_plan(request: Request):
     except Exception:
         return JSONResponse(status_code=400, content={"error": "ข้อมูลไม่ถูกต้อง"})
 
-    curriculum_dict = await _load_curriculum_dict_from_db()
+    async with AsyncSessionLocal() as session:
+        curriculum_dict = await load_curriculum_dict(session)
     plan = compute_study_plan(courses, curriculum_dict, plan_type)
     return JSONResponse(content=plan)
 

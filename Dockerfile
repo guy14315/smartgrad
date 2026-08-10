@@ -1,25 +1,20 @@
-# --- build stage ---
-FROM python:3.12-slim-bookworm AS builder
-
-WORKDIR /app
-
-# Install build dependencies if needed (none strictly needed for these packages, but standard practice)
-COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
-
-# --- runtime stage ---
 FROM python:3.12-slim-bookworm
 
-WORKDIR /app
+# Copy 'uv' package manager from the official Astral image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+WORKDIR /app
 RUN useradd --create-home --uid 1000 app
 
-COPY --from=builder /app/wheels /wheels
-COPY --from=builder /app/requirements.txt .
+# Copy pyproject.toml
+COPY pyproject.toml ./
 
-RUN pip install --no-cache /wheels/*
+# Install dependencies directly from pyproject.toml using uv
+# This is much faster than pip and doesn't require a requirements.txt file
+RUN uv pip install --system -r pyproject.toml
 
-COPY --chown=app:app main.py parser.py dashboard.py database.py models.py seed.py init.sql ./
+# Copy the rest of the application source code
+COPY --chown=app:app main.py parser.py dashboard.py database.py models.py seed.py config.py services.py init.sql ./
 COPY --chown=app:app routers/ ./routers/
 COPY --chown=app:app templates/ ./templates/
 
@@ -31,5 +26,4 @@ ENV PYTHONUNBUFFERED=1 \
 USER app
 EXPOSE 8080
 
-# Cloud Run injects $PORT; the default above covers local runs.
 CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT}"]

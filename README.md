@@ -9,7 +9,9 @@ SmartGrad เป็นแอปพลิเคชันบนเว็บที�
 - `dashboard.py` — คำนวณความก้าวหน้าในการเรียน และสร้างตารางแนะนำแผนการเรียน (Study Plan)
 - `database.py` — การตั้งค่าการเชื่อมต่อ SQLite (ใช้ฐานข้อมูล `smartgrad.db`)
 - `init.sql` / `seed.py` — คำสั่ง SQL สำหรับสร้างโครงสร้างหลักสูตร (Curriculum) และฟังก์ชันสำหรับ Seed ข้อมูลลงฐานข้อมูลเริ่มต้น
-- `models.py` — โมเดลข้อมูล Pydantic เพื่อใช้ในการ Validate ข้อมูลผ่าน API
+- `models.py` — โมเดลข้อมูล Pydantic/SQLAlchemy เพื่อใช้ในการรับส่งข้อมูล
+- `config.py` — ศูนย์รวมการตั้งค่าและค่าคงที่ทั้งหมด (Single Source of Truth) เช่น รหัสวิชาเกณฑ์การผ่าน
+- `services.py` — ฟังก์ชันตัวช่วย (Shared Business Logic) ที่ถูกเรียกใช้ร่วมกันระหว่างหลายโมดูล
 - `routers/` — จัดการ API Routes ย่อย:
   - `students.py` — API เกี่ยวกับการจัดการข้อมูลนักศึกษา, บันทึกการจำลองถอนวิชา
   - `curriculum.py` — API สำหรับดึงข้อมูลโครงสร้างหลักสูตรและการค้นหารายวิชา
@@ -23,37 +25,41 @@ SmartGrad เป็นแอปพลิเคชันบนเว็บที�
 
 - Python 3.12+
 - Docker (ถ้าต้องการใช้งานผ่าน Docker)
+- [uv](https://docs.astral.sh/uv/) (แนะนำสำหรับการจัดการแพ็กเกจที่รวดเร็ว)
 
-## Local Run
+## การรันโปรเจกต์ (Local Run)
 
-### วิธีที่ 1: รันผ่าน Python และ pip
+### วิธีที่ 1: รันผ่าน Docker Compose (แนะนำ)
 
+ไม่ต้องติดตั้ง Python บนเครื่อง สามารถรันคำสั่งนี้ได้เลย:
+```bash
+docker compose up -d
+```
+ระบบจะเข้าใช้งานได้ที่ `http://localhost:8000`
+(ระบบนี้รันผ่าน `Dockerfile` ที่ปรับจูนให้ติดตั้งแพ็กเกจด้วย `uv` แบบอัตโนมัติ ทำให้ Build ได้เร็วมาก)
+
+### วิธีที่ 2: รันแบบ Local ผ่านคำสั่ง uv หรือ pip
+
+โปรเจกต์นี้จัดการแพ็กเกจด้วย `pyproject.toml` แบบมาตรฐานยุคใหม่ (ไม่ต้องพึ่งไฟล์ requirements.txt)
+
+**ใช้ uv (แนะนำ):**
+```bash
+uv venv
+# สำหรับ Windows: .venv\Scripts\activate
+# สำหรับ Mac/Linux: source .venv/bin/activate
+uv pip install -e .
+uvicorn main:app --reload
+```
+
+**หรือใช้ pip ปกติ:**
 ```bash
 python -m venv .venv
 # สำหรับ Windows: .venv\Scripts\activate
 # สำหรับ Mac/Linux: source .venv/bin/activate
-pip install fastapi[standard] uvicorn jinja2 pdfplumber python-multipart pydantic aiosqlite passlib bcrypt
+pip install .
 uvicorn main:app --reload
 ```
-
-เมื่อเซิร์ฟเวอร์รันสำเร็จ สามารถเข้าใช้งานได้ที่: `http://localhost:8000`
-
-### วิธีที่ 2: รันผ่าน Docker
-
-สามารถใช้งานผ่าน Docker ได้ 2 รูปแบบ โดยไม่ต้องติดตั้ง Python บนเครื่อง:
-
-**แบบที่ 1: ใช้ Docker Compose (แนะนำสำหรับการพัฒนา)**
-```bash
-docker compose up --build
-```
-ระบบจะเข้าใช้งานได้ที่ `http://localhost:8000` (หากแก้โค้ด ระบบจะรีสตาร์ทอัตโนมัติ)
-
-**แบบที่ 2: ใช้ Docker ธรรมดา**
-```bash
-docker build -t smartgrad-app .
-docker run -p 8080:8080 smartgrad-app
-```
-ระบบจะเข้าใช้งานได้ที่ `http://localhost:8080`
+เข้าใช้งานได้ที่: `http://localhost:8000`
 
 ## Student Features
 1. **อัปโหลดและตรวจสอบ:** ดึงข้อมูลจาก Transcript (.pdf) ได้ทันที
@@ -64,9 +70,8 @@ docker run -p 8080:8080 smartgrad-app
 
 ## Advisor System
 
-เปิด `http://localhost:8000/advisor` แล้วเข้าสู่ระบบด้วยบัญชีที่ถูกสร้างขึ้นตอน Seed ข้อมูล:
+เปิด `http://localhost:8000/advisor` แล้วเข้าสู่ระบบด้วยบัญชีเริ่มต้นจากระบบ Seed ข้อมูล:
 
 - **รหัสอาจารย์:** `ADVISOR001`
 - **รหัสผ่าน:** `smartgrad-demo`
 - **ปีการศึกษาที่ดูแล:** `2567` (นักศึกษาที่รหัสขึ้นต้นด้วย `67`)
-

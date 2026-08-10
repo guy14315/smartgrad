@@ -4,5 +4,15 @@ services:
     ports:
       - "8000:8080"
     volumes:
-      - .:/app
+      - ./main.py:/app/main.py
+      - ./parser.py:/app/parser.py
+      - ./dashboard.py:/app/dashboard.py
+      - ./database.py:/app/database.py
+      - ./models.py:/app/models.py
+      - ./seed.py:/app/seed.py
+      - ./config.py:/app/config.py
+      - ./services.py:/app/services.py
+      - ./init.sql:/app/init.sql
+      - ./routers:/app/routers
+      - ./templates:/app/templates
     command: uvicorn main:app --host 0.0.0.0 --port 8080 --reload

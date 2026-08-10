@@ -1,9 +1,12 @@
 """Async SQLAlchemy database engine and session factory."""
 
+import logging
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).parent / "smartgrad.db"
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"

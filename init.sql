@@ -81,18 +81,6 @@ CREATE TABLE IF NOT EXISTS transcript_courses (
     FOREIGN KEY (course_code) REFERENCES courses(course_code)
 );
 
-CREATE TABLE IF NOT EXISTS advisor_notes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    advisor_id VARCHAR(20) NOT NULL,
-    student_id VARCHAR(20) NOT NULL,
-    subject VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    recipient_email VARCHAR(255) NOT NULL,
-    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    FOREIGN KEY (advisor_id) REFERENCES advisors(advisor_id),
-    FOREIGN KEY (student_id) REFERENCES students(student_id)
-);
-
 
 
 -- ---------------------------------------------------------------------------

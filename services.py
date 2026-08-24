@@ -6,7 +6,10 @@
 - classify_course: จัดหมวดหมู่รายวิชา
 """
 
+import hashlib
+import hmac
 import logging
+import secrets
 from typing import Any
 
 from sqlalchemy import select
@@ -23,6 +26,47 @@ from config import (
 from models import Course, Transcript, TranscriptCourse
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Security & Password Utilities
+# ---------------------------------------------------------------------------
+
+def hash_password(password: str) -> str:
+    """Hash password using PBKDF2-HMAC-SHA256 with 100,000 iterations and random salt."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        iterations=100_000,
+    )
+    return f"pbkdf2_sha256$100000${salt}${key.hex()}"
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against stored hash (supports PBKDF2 and legacy SHA256)."""
+    if not hashed_password or not plain_password:
+        return False
+    if hashed_password.startswith("pbkdf2_sha256$"):
+        try:
+            parts = hashed_password.split("$")
+            if len(parts) != 4:
+                return False
+            _, iters_str, salt, key_hex = parts
+            iters = int(iters_str)
+            computed_key = hashlib.pbkdf2_hmac(
+                "sha256",
+                plain_password.encode("utf-8"),
+                salt.encode("utf-8"),
+                iterations=iters,
+            )
+            return hmac.compare_digest(computed_key.hex(), key_hex)
+        except Exception:
+            return False
+    # Legacy SHA-256 fallback
+    legacy_sha256 = hashlib.sha256(plain_password.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(legacy_sha256, hashed_password)
 
 
 # ---------------------------------------------------------------------------
@@ -96,9 +140,13 @@ async def get_active_transcript(
 
 def compute_credits(courses: list[TranscriptCourse]) -> tuple[int, int]:
     """Return (passed_credits, total_attempted_credits) from a list of TranscriptCourse."""
-    passed = sum(c.credit for c in courses if c.grade and c.grade.upper() not in NON_PASSING_GRADES)
+    passed_by_code: dict[str, int] = {}
     total = sum(c.credit for c in courses)
-    return passed, total
+    for c in courses:
+        grade = (c.grade or "").upper()
+        if grade and grade not in NON_PASSING_GRADES:
+            passed_by_code[c.course_code] = c.credit
+    return sum(passed_by_code.values()), total
 
 
 def transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:

@@ -234,34 +234,16 @@
   </div>
 
   <script>
-    const GE_PREFIX = "90";
-    const CORE_MATH_CODES = new Set(["05506001", "05506002", "05506250", "05506231", "05506232", "05506233"]);
-    const ALTERNATIVE_CODES = new Set(["05506098", "05506099", "05506117", "05506118"]);
-    const CORE_CS_PREFIX = "055";
-
     let allCourses = [];
-    let curriculumCodes = new Set();
 
-    const categoryLabels = {
-      "ge": { label: "ศึกษาทั่วไป (GE)", class: "badge-ge" },
-      "core_math": { label: "คณิตศาสตร์/สถิติบังคับ", class: "badge-core-math" },
-      "core_cs": { label: "วิชาบังคับ CS", class: "badge-core-cs" },
-      "elective": { label: "วิชาเลือกเฉพาะสาขา", class: "badge-elective" },
-      "free": { label: "วิชาเลือกเสรี", class: "badge-free" },
-      "alternative": { label: "การศึกษาทางเลือก", class: "badge-alt" }
+    const categoryBadges = {
+      "ge": "badge-ge",
+      "core_math": "badge-core-math",
+      "core_cs": "badge-core-cs",
+      "elective": "badge-elective",
+      "free": "badge-free",
+      "alternative": "badge-alt"
     };
-
-    function classifyCourse(c) {
-      const code = c.course_code;
-      if (code.startsWith(GE_PREFIX)) return "ge";
-      if (CORE_MATH_CODES.has(code)) return "core_math";
-      if (ALTERNATIVE_CODES.has(code)) return "alternative";
-      if (code.startsWith(CORE_CS_PREFIX)) {
-        if (c.year !== null) return "core_cs";
-        return "elective";
-      }
-      return "free";
-    }
 
     async function loadCourses() {
       try {
@@ -271,7 +253,6 @@
         let courses = [];
         data.forEach(term => {
           term.courses.forEach(c => {
-            curriculumCodes.add(c.course_code);
             courses.push(c);
           });
         });
@@ -282,11 +263,6 @@
           uniqueCoursesMap.set(c.course_code, c);
         });
         allCourses = Array.from(uniqueCoursesMap.values());
-
-        // Assign categories
-        allCourses.forEach(c => {
-          c.categoryKey = classifyCourse(c);
-        });
 
         document.getElementById('loadingBox').style.display = 'none';
         document.getElementById('coursesTable').style.display = 'table';
@@ -306,8 +282,8 @@
                              (c.course_name_th && c.course_name_th.toLowerCase().includes(search)) || 
                              (c.course_name_en && c.course_name_en.toLowerCase().includes(search)));
         const matchCat = (cat === 'all' || 
-                          (cat === 'free' && ['free', 'ge', 'elective'].includes(c.categoryKey)) || 
-                          c.categoryKey === cat);
+                          (cat === 'free' && ['free', 'ge', 'elective'].includes(c.category)) || 
+                          c.category === cat);
         return matchSearch && matchCat;
       });
 
@@ -325,7 +301,6 @@
         document.querySelector('.filter-bar').after(infoText);
       }
       
-      
       if (filtered.length === 0) {
         document.getElementById('coursesTable').style.display = 'none';
         document.getElementById('noResultBox').style.display = 'block';
@@ -337,7 +312,8 @@
 
       filtered.forEach(c => {
         const tr = document.createElement('tr');
-        const catInfo = categoryLabels[c.categoryKey] || categoryLabels["free"];
+        const badgeClass = categoryBadges[c.category] || "badge-free";
+        const badgeLabel = c.category_label || "วิชาเลือกเสรี";
         
         tr.innerHTML = `
           <td style="font-family: monospace; color: var(--text-muted);">${c.course_code}</td>
@@ -346,7 +322,7 @@
             <span style="font-size: 13px; color: var(--text-muted); font-weight: 400;">${c.course_name_en || ''}</span>
           </td>
           <td style="text-align: center; font-weight: 500;">${c.credit}</td>
-          <td><span class="badge ${catInfo.class}">${catInfo.label}</span></td>
+          <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
         `;
         tbody.appendChild(tr);
       });

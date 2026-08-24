@@ -41,22 +41,28 @@ def _flat_curriculum(curriculum_data: dict) -> list[dict]:
     return flat
 
 
-def _compute_category_breakdown(transcript_courses: list[dict], curriculum_codes: dict[str, Any]) -> tuple[list[dict], dict[str, int]]:
-    category_credits: dict[str, int] = {k: 0 for k in CATEGORIES}
-    category_courses: dict[str, list] = {k: [] for k in CATEGORIES}
-
-    # Sort courses chronologically
+def _get_unique_passed_courses(transcript_courses: list[dict]) -> list[dict]:
+    """Return unique passed courses, keeping the latest passed record per course code."""
     sorted_courses = sorted(
         transcript_courses,
         key=lambda c: (c.get("academic_year") or 9999, c.get("semester") or 99)
     )
-
+    unique_passed: dict[str, dict] = {}
     for c in sorted_courses:
         grade = (c.get("grade") or "").upper()
         is_current = c.get("is_current", False)
-        if is_current or (not grade) or grade in NON_PASSING_GRADES:
-            continue  # only count passed
-        
+        if not is_current and grade and grade not in NON_PASSING_GRADES:
+            unique_passed[c["code"]] = c
+    return list(unique_passed.values())
+
+
+def _compute_category_breakdown(transcript_courses: list[dict], curriculum_codes: dict[str, Any]) -> tuple[list[dict], dict[str, int]]:
+    category_credits: dict[str, int] = {k: 0 for k in CATEGORIES}
+    category_courses: dict[str, list] = {k: [] for k in CATEGORIES}
+
+    passed_courses = _get_unique_passed_courses(transcript_courses)
+
+    for c in passed_courses:
         cat = classify_course(c["code"], curriculum_codes)
         credit = c.get("credit", 0)
         
@@ -167,8 +173,9 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
     remaining = [c for c in curriculum if c["code"] not in passed_codes and c["code"] not in current_codes and c.get("year") is not None and c.get("semester") is not None]
     in_progress = [c for c in curriculum if c["code"] in current_codes]
 
-    # Calculate completed credits from transcript (not from curriculum definition to include free electives)
-    completed_credits = sum(c.get("credit", 0) for c in transcript_courses if (c.get("grade") or "").upper() not in NON_PASSING_GRADES and not c.get("is_current", False))
+    # Calculate completed credits from transcript (deduplicating repeated courses)
+    unique_passed = _get_unique_passed_courses(transcript_courses)
+    completed_credits = sum(c.get("credit", 0) for c in unique_passed)
 
     # Remaining list with prereq status
     remaining_list = []
@@ -199,7 +206,7 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
     in_progress_list = _compute_in_progress(transcript_courses, curriculum, curriculum_codes)
 
     return {
-        "completed_courses": len([c for c in transcript_courses if (c.get("grade") or "").upper() not in NON_PASSING_GRADES and not c.get("is_current")]),
+        "completed_courses": len(unique_passed),
         "total_courses": len(curriculum),
         "completed_credits": completed_credits,
         "total_credits": TOTAL_CREDITS_TARGET,
@@ -279,16 +286,8 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
 
     # --- category credits earned so far ---
     cat_earned: dict[str, int] = {k: 0 for k in CATEGORIES}
-    # Sort for consistent spillover
-    sorted_for_plan = sorted(
-        transcript_courses,
-        key=lambda c: (c.get("academic_year") or 9999, c.get("semester") or 99)
-    )
-    for c in sorted_for_plan:
-        grade = (c.get("grade") or "").upper()
-        is_current = c.get("is_current", False)
-        if not is_current and ((not grade) or grade in NON_PASSING_GRADES):
-            continue
+    unique_passed_for_plan = _get_unique_passed_courses(transcript_courses)
+    for c in unique_passed_for_plan:
         cat = classify_course(c["code"], curriculum_codes)
         
         if cat in ["ge", "elective"] and cat_earned[cat] >= CATEGORIES[cat]["target"]:

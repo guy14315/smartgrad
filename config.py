@@ -10,12 +10,14 @@ import re
 # Non-passing grades
 # ---------------------------------------------------------------------------
 NON_PASSING_GRADES = {"F", "W", "WU", "U"}
+VALID_GRADES = {"A", "B+", "B", "C+", "C", "D+", "D", "F", "S", "U", "W", "WU", "P", "AUD", "IP", "I"}
 
 # ---------------------------------------------------------------------------
 # Regex patterns
 # ---------------------------------------------------------------------------
 CREDIT_RE = re.compile(r"^(\d+)")
 COURSE_CODE_PATTERN = re.compile(r"^\d{5,9}$")
+VALID_GRADES_PATTERN = re.compile(r"^(A|B\+|B|C\+|C|D\+|D|F|S|U|W|WU|P|AUD|IP|I)$", re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
 # Curriculum settings (KMITL CS พ.ศ. 2564)

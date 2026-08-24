@@ -1,10 +1,7 @@
-"""API router: อาจารย์ที่ปรึกษา – login, รายงาน และส่งคำแนะนำ"""
+"""API router: อาจารย์ที่ปรึกษา – login, รายงาน"""
 
-import asyncio
 import hashlib
-import os
-import smtplib
-from email.message import EmailMessage
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -14,10 +11,9 @@ from sqlalchemy.orm import selectinload
 
 from database import get_db
 from config import NON_PASSING_GRADES
-from services import compute_credits, get_active_transcript
-from models import Advisor, AdvisorCredential, AdvisorNote, Student, Transcript
+from services import compute_credits, get_active_transcript, hash_password, verify_password
+from models import Advisor, AdvisorCredential, Student, Transcript
 
-import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/advisors", tags=["Advisors"])
@@ -48,10 +44,6 @@ class LoginIn(BaseModel):
     password: str
 
 
-class NoteIn(BaseModel):
-    subject: str
-    message: str
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -77,9 +69,14 @@ def _require_advisor_login(request: Request, advisor_id: str) -> None:
 @router.post("/login", summary="เข้าสู่ระบบอาจารย์ที่ปรึกษา")
 async def login(body: LoginIn, request: Request, db: AsyncSession = Depends(get_db)):
     credential = await db.get(AdvisorCredential, body.advisor_id)
-    password_hash = hashlib.sha256(body.password.encode()).hexdigest()
-    if not credential or credential.password_hash != password_hash:
+    if not credential or not verify_password(body.password, credential.password_hash):
         raise HTTPException(status_code=401, detail="รหัสอาจารย์หรือรหัสผ่านไม่ถูกต้อง")
+    
+    # Auto-upgrade legacy hash to PBKDF2 if verified with legacy format
+    if not credential.password_hash.startswith("pbkdf2_sha256$"):
+        credential.password_hash = hash_password(body.password)
+        await db.commit()
+
     advisor = await _get_advisor_or_404(body.advisor_id, db)
     request.session["advisor_id"] = advisor.advisor_id
     return {"advisor_id": advisor.advisor_id, "name": advisor.name}
@@ -284,56 +281,3 @@ async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = 
         "students_without_transcript": without_transcript,
         "average_passed_credits": round(total_passed_credits / with_transcript, 1) if with_transcript else 0,
     }
-
-
-def _send_email(recipient: str, subject: str, message: str) -> None:
-    host = os.getenv("SMTP_HOST")
-    sender = os.getenv("SMTP_FROM")
-    if not host or not sender:
-        raise RuntimeError("ยังไม่ได้ตั้งค่า SMTP_HOST และ SMTP_FROM")
-
-    email = EmailMessage()
-    email["From"] = sender
-    email["To"] = recipient
-    email["Subject"] = subject
-    email.set_content(message)
-    port = int(os.getenv("SMTP_PORT", "587"))
-    with smtplib.SMTP(host, port, timeout=15) as server:
-        if os.getenv("SMTP_STARTTLS", "true").lower() == "true":
-            server.starttls()
-        username, password = os.getenv("SMTP_USERNAME"), os.getenv("SMTP_PASSWORD")
-        if username and password:
-            server.login(username, password)
-        server.send_message(email)
-
-
-@router.post("/{advisor_id}/students/{student_id}/notes", status_code=201, summary="ส่งคำแนะนำให้นักศึกษาทางอีเมล")
-async def send_note(
-    advisor_id: str,
-    student_id: str,
-    body: NoteIn,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    _require_advisor_login(request, advisor_id)
-    if not student_id.isdigit() or len(student_id) != 8:
-        raise HTTPException(status_code=400, detail="รหัสนักศึกษาต้องเป็นตัวเลข 8 หลัก")
-    student_result = await db.execute(
-        select(Student).where(Student.student_id == student_id, Student.advisor_id == advisor_id)
-    )
-    if not student_result.scalars().first() or not await get_active_transcript(student_id, db):
-        raise HTTPException(status_code=404, detail="ไม่พบนักศึกษาที่อัปโหลด Transcript ในความดูแล")
-
-    recipient = f"{student_id}@kmitl.ac.th"
-    try:
-        await asyncio.to_thread(_send_email, recipient, body.subject, body.message)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except (OSError, smtplib.SMTPException) as exc:
-        raise HTTPException(status_code=502, detail="ส่งอีเมลไม่สำเร็จ โปรดตรวจสอบการตั้งค่า SMTP") from exc
-
-    note = AdvisorNote(advisor_id=advisor_id, student_id=student_id, subject=body.subject,
-                       message=body.message, recipient_email=recipient)
-    db.add(note)
-    await db.commit()
-    return {"message": "ส่งคำแนะนำทางอีเมลแล้ว", "recipient_email": recipient, "sent_at": note.sent_at}

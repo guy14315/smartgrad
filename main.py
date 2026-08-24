@@ -72,9 +72,20 @@ app.add_middleware(
 
 from fastapi.middleware.cors import CORSMiddleware
 
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+if not allowed_origins:
+    allowed_origins = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

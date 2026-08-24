@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,7 +19,7 @@ from models import (
     Prerequisite,
 )
 from parser import parse_transcript
-from config import NON_PASSING_GRADES, COURSE_CODE_PATTERN, MAX_UPLOAD_SIZE_BYTES
+from config import NON_PASSING_GRADES, COURSE_CODE_PATTERN, MAX_UPLOAD_SIZE_BYTES, VALID_GRADES_PATTERN
 from services import get_active_transcript, load_curriculum_dict, transcript_courses_to_list
 
 import logging
@@ -64,6 +64,14 @@ class TranscriptHistoryOut(BaseModel):
 
 class CourseOverrideIn(BaseModel):
     grade: str
+
+    @field_validator("grade")
+    @classmethod
+    def validate_grade(cls, v: str) -> str:
+        v_clean = v.strip().upper()
+        if not VALID_GRADES_PATTERN.match(v_clean):
+            raise ValueError("รูปแบบเกรดไม่ถูกต้อง (เช่น A, B+, B, C+, C, D+, D, F, S, U, W)")
+        return v_clean
 
 
 class SimulateIn(BaseModel):

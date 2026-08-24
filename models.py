@@ -42,8 +42,6 @@ class Course(Base):
 
     # relationships
     curriculum: Mapped["Curriculum | None"] = relationship(back_populates="courses")
-
-    # relationships
     prerequisites: Mapped[list["Prerequisite"]] = relationship(
         "Prerequisite", foreign_keys="Prerequisite.course_code", back_populates="course", cascade="all, delete-orphan"
     )
@@ -85,19 +83,6 @@ class AdvisorCredential(Base):
         ForeignKey("advisors.advisor_id"), primary_key=True
     )
     password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-
-
-class AdvisorNote(Base):
-    """บันทึกคำแนะนำที่อาจารย์ส่งให้นักศึกษา"""
-    __tablename__ = "advisor_notes"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    advisor_id: Mapped[str] = mapped_column(ForeignKey("advisors.advisor_id"), nullable=False)
-    student_id: Mapped[str] = mapped_column(ForeignKey("students.student_id"), nullable=False)
-    subject: Mapped[str] = mapped_column(String(255), nullable=False)
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    recipient_email: Mapped[str] = mapped_column(String(255), nullable=False)
-    sent_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
 
 class Student(Base):

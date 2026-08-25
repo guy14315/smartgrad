@@ -68,7 +68,7 @@ def _course_to_out(c: Course, curriculum_codes: dict[str, Any] | None = None) ->
         plan_type=c.plan_type,
         category=cat,
         category_label=cat_meta["label"],
-        prerequisites=[p.prereq_code for p in c.prerequisites],
+        prerequisites=list(dict.fromkeys(p.prereq_code for p in c.prerequisites)),
     )
 
 

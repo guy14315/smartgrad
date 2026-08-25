@@ -292,6 +292,69 @@
       padding: 10px 16px; font-family: 'Prompt', sans-serif;
     }
 
+    .btn-add-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-family: 'Prompt', sans-serif;
+      font-weight: 500;
+      color: var(--kmitl-orange);
+      background: #FFFFFF;
+      border: 1px solid var(--kmitl-orange-light);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-add-row:hover {
+      background: var(--kmitl-orange);
+      color: #FFFFFF;
+    }
+    .btn-del-row {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--gray-500);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+    .btn-del-row:hover {
+      background: var(--danger-light);
+      color: var(--danger);
+      border-color: #FCA5A5;
+    }
+    .btn-add-semester {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-family: 'Prompt', sans-serif;
+      font-weight: 500;
+      color: var(--navy-700);
+      background: #FFFFFF;
+      border: 1px dashed var(--gray-300);
+      border-radius: var(--radius);
+      cursor: pointer;
+      margin-top: 16px;
+      width: 100%;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .btn-add-semester:hover {
+      border-color: var(--kmitl-orange);
+      color: var(--kmitl-orange);
+      background: var(--gray-50);
+    }
+
     .badge-current {
       display: inline-block; font-size: 12px; font-weight: 500; font-family: 'Prompt', sans-serif;
       background: var(--warning-light); color: var(--warning);
@@ -838,12 +901,17 @@
                 <th>รหัสวิชา</th>
                 <th>ชื่อวิชา</th>
                 <th style="text-align:center; width:80px">หน่วยกิต</th>
-                <th style="text-align:center; width:80px">เกรด</th>
+                <th style="text-align:center; width:90px">เกรด</th>
+                <th style="text-align:center; width:50px"></th>
               </tr>
             </thead>
             <tbody id="review-tbody"></tbody>
           </table>
         </div>
+
+        <button type="button" class="btn-add-semester" onclick="openAddSemesterModal()">
+          + เพิ่มภาคการศึกษาใหม่
+        </button>
 
         <div class="confirm-bar">
           <p>ข้อมูลถูกต้องและครบถ้วนแล้ว กดปุ่มเพื่อบันทึกและคำนวณผล</p>
@@ -1111,30 +1179,71 @@
   /* ===================================================
      RENDER REVIEW TABLE
   =================================================== */
+  function syncReviewInputs() {
+    document.querySelectorAll('.review-row').forEach(tr => {
+      const idx = parseInt(tr.dataset.idx);
+      if (!isNaN(idx) && idx >= 0 && idx < parsedCourses.length) {
+        const codeInp = tr.querySelector('.code-input');
+        const nameInp = tr.querySelector('.name-input');
+        const creditInp = tr.querySelector('.credit-input');
+        const gradeInp = tr.querySelector('.grade-val-input');
+
+        if (codeInp) parsedCourses[idx].code = codeInp.value.trim();
+        if (nameInp) parsedCourses[idx].name_en = nameInp.value.trim();
+        if (creditInp) parsedCourses[idx].credit = parseFloat(creditInp.value.trim()) || 0;
+        if (gradeInp) parsedCourses[idx].grade = gradeInp.value.trim().toUpperCase() || null;
+      }
+    });
+  }
+
   function renderReviewTable(courses) {
     const tbody = document.getElementById('review-tbody');
     tbody.innerHTML = '';
 
     // group by semester
     const groups = {};
-    for (const c of courses) {
+    for (let i = 0; i < courses.length; i++) {
+      const c = courses[i];
+      const key = `${c.semester || '0'}_${c.academic_year || ''}`;
       const label = c.semester && c.academic_year
         ? `ภาคเรียนที่ ${c.semester} ปีการศึกษา ${c.academic_year}`
-        : 'ไม่ระบุภาคการศึกษา';
-      if (!groups[label]) groups[label] = [];
-      groups[label].push(c);
+        : 'เทียบโอน / ไม่ระบุภาคการศึกษา';
+      if (!groups[key]) {
+        groups[key] = {
+          key: key,
+          label: label,
+          semester: c.semester,
+          academic_year: c.academic_year,
+          is_current: c.is_current,
+          items: []
+        };
+      }
+      groups[key].items.push({ course: c, idx: i });
     }
 
     let total = 0, passedCredit = 0;
 
-    for (const [label, rows] of Object.entries(groups)) {
-      // semester header row
+    for (const group of Object.values(groups)) {
+      // semester header row with add course button
       const hr = document.createElement('tr');
       hr.className = 'sem-header';
-      hr.innerHTML = `<td colspan="4"> ${label}</td>`;
+      const semParam = group.semester === null || group.semester === undefined ? 'null' : group.semester;
+      const yrParam = group.academic_year ? `'${group.academic_year}'` : 'null';
+      const isCurParam = group.is_current ? 'true' : 'false';
+
+      hr.innerHTML = `
+        <td colspan="3">${group.label}</td>
+        <td colspan="2" style="text-align:right;">
+          <button type="button" class="btn-add-row" onclick="addCourseToSemester(${semParam}, ${yrParam}, ${isCurParam})">
+            + เพิ่มวิชาในเทอมนี้
+          </button>
+        </td>
+      `;
       tbody.appendChild(hr);
 
-      for (const c of rows) {
+      for (const item of group.items) {
+        const c = item.course;
+        const i = item.idx;
         total++;
         const isCurrent = c.is_current;
         const grade = c.grade || '';
@@ -1144,19 +1253,21 @@
 
         const tr = document.createElement('tr');
         tr.className = 'review-row';
-        tr.dataset.idx = parsedCourses.indexOf(c);
+        tr.dataset.idx = i;
         tr.innerHTML = `
           <td>
-            <input class="grade-input code-input" type="text" value="${c.code}" style="width:100px; text-align:left; font-family:monospace;" />
+            <input class="grade-input code-input" type="text" value="${c.code || ''}" placeholder="รหัสวิชา"
+                   onchange="onReviewCodeChange(this, ${i})"
+                   style="width:100px; text-align:left; font-family:monospace;" />
           </td>
           <td>
             <div style="display:flex; align-items:center; gap:8px;">
-              <input class="grade-input name-input" type="text" value="${c.name_en}" style="width:100%; text-align:left;" />
+              <input class="grade-input name-input" type="text" value="${c.name_en || ''}" placeholder="ชื่อวิชา" style="width:100%; text-align:left;" />
               ${isCurrent ? '<span class="badge-current" style="flex-shrink:0;">กำลังเรียน</span>' : ''}
             </div>
           </td>
           <td style="text-align:center">
-            <input class="grade-input credit-input" type="text" value="${c.credit}" style="width:50px;" />
+            <input class="grade-input credit-input" type="number" min="0" max="15" value="${c.credit !== undefined ? c.credit : 3}" style="width:55px;" />
           </td>
           <td style="text-align:center">
             ${isCurrent
@@ -1167,6 +1278,9 @@
                    placeholder="–">`
             }
           </td>
+          <td style="text-align:center">
+            <button type="button" class="btn-del-row" onclick="removeReviewCourse(${i})" title="ลบวิชานี้">&times;</button>
+          </td>
         `;
         tbody.appendChild(tr);
       }
@@ -1176,8 +1290,90 @@
     document.getElementById('review-info').innerHTML = `
       <div class="review-badge">จำนวนรายวิชาที่พบ: <strong>${courses.length}</strong> วิชา</div>
       <div class="review-badge">หน่วยกิตที่ผ่านการประเมิน: <strong>${passedCredit}</strong> หน่วยกิต</div>
-      <div class="review-badge">ชื่อไฟล์เอกสาร: <strong style="color:var(--navy-700)">${fileObj.name}</strong></div>
+      <div class="review-badge">ชื่อไฟล์เอกสาร: <strong style="color:var(--navy-700)">${fileObj ? fileObj.name : 'Transcript'}</strong></div>
     `;
+  }
+
+  function addCourseToSemester(semester, academic_year, is_current) {
+    syncReviewInputs();
+    parsedCourses.push({
+      code: '',
+      name_en: '',
+      credit: 3,
+      grade: is_current ? null : '',
+      semester: semester,
+      academic_year: academic_year || null,
+      is_current: is_current,
+    });
+    renderReviewTable(parsedCourses);
+    const rows = document.querySelectorAll('.review-row');
+    if (rows.length > 0) {
+      const lastCodeInput = rows[rows.length - 1].querySelector('.code-input');
+      if (lastCodeInput) lastCodeInput.focus();
+    }
+  }
+
+  function removeReviewCourse(idx) {
+    syncReviewInputs();
+    parsedCourses.splice(idx, 1);
+    renderReviewTable(parsedCourses);
+  }
+
+  async function onReviewCodeChange(input, idx) {
+    const code = input.value.trim();
+    if (!code) return;
+    try {
+      const res = await fetch(`/api/curriculum/courses/${code}`);
+      if (res.ok) {
+        const data = await res.json();
+        const row = input.closest('tr');
+        if (row) {
+          const nameInput = row.querySelector('.name-input');
+          const creditInput = row.querySelector('.credit-input');
+          if (nameInput && (!nameInput.value.trim() || nameInput.value === code)) {
+            nameInput.value = data.course_name_en || data.course_name_th;
+            if (idx >= 0 && idx < parsedCourses.length) {
+              parsedCourses[idx].name_en = nameInput.value;
+            }
+          }
+          if (creditInput && (!creditInput.value || creditInput.value === '0')) {
+            creditInput.value = data.credit;
+            if (idx >= 0 && idx < parsedCourses.length) {
+              parsedCourses[idx].credit = data.credit;
+            }
+          }
+        }
+      }
+    } catch(e) {}
+  }
+
+  function openAddSemesterModal() {
+    document.getElementById('new-year-input').value = '';
+    document.getElementById('new-sem-is-current').checked = false;
+    document.getElementById('add-semester-modal').classList.add('show');
+  }
+  function closeAddSemesterModal() {
+    document.getElementById('add-semester-modal').classList.remove('show');
+  }
+  function confirmAddSemester() {
+    const semVal = document.getElementById('new-sem-select').value;
+    const yrVal = document.getElementById('new-year-input').value.trim();
+    const isCurrent = document.getElementById('new-sem-is-current').checked;
+
+    let semester = null;
+    let academic_year = null;
+
+    if (semVal !== 'transfer') {
+      semester = parseInt(semVal);
+      if (!yrVal) {
+        alert('กรุณาระบุปีการศึกษา (เช่น 2024-2025)');
+        return;
+      }
+      academic_year = yrVal;
+    }
+
+    closeAddSemesterModal();
+    addCourseToSemester(semester, academic_year, isCurrent);
   }
 
   function onGradeChange(input) {
@@ -1198,19 +1394,10 @@
     document.getElementById('confirm-btn').disabled = true;
     document.getElementById('confirm-spinner').style.display = 'inline-flex';
 
-    // sync values from inputs back to parsedCourses
-    document.querySelectorAll('.review-row').forEach(tr => {
-      const idx = parseInt(tr.dataset.idx);
-      const codeInp = tr.querySelector('.code-input');
-      const nameInp = tr.querySelector('.name-input');
-      const creditInp = tr.querySelector('.credit-input');
-      const gradeInp = tr.querySelector('.grade-val-input');
+    syncReviewInputs();
 
-      if(codeInp) parsedCourses[idx].code = codeInp.value.trim();
-      if(nameInp) parsedCourses[idx].name_en = nameInp.value.trim();
-      if(creditInp) parsedCourses[idx].credit = parseFloat(creditInp.value.trim()) || 0;
-      if(gradeInp) parsedCourses[idx].grade = gradeInp.value.trim().toUpperCase() || null;
-    });
+    // filter out empty course rows if any
+    parsedCourses = parsedCourses.filter(c => (c.code && c.code.trim()) || (c.name_en && c.name_en.trim()));
 
     try {
       const res = await fetch('/confirm', {
@@ -2110,6 +2297,39 @@
       <p style="margin-bottom: 16px; color: var(--text-muted);">เลือกรายวิชาที่กำลังศึกษาเพื่อดูผลกระทบหากท่านตัดสินใจถอนรายวิชานี้ (W)</p>
       <div id="withdraw-course-list"></div>
       <div id="withdraw-impact-result" class="impact-report"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add New Semester in Review -->
+<div class="add-course-modal-overlay" id="add-semester-modal">
+  <div class="add-course-modal" style="max-width: 440px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-family:'Prompt',sans-serif; font-size:17px; font-weight:600; color:var(--navy-900);">เพิ่มภาคการศึกษา</h3>
+      <button type="button" style="background:none; border:none; font-size:22px; cursor:pointer; color:var(--gray-500);" onclick="closeAddSemesterModal()">&times;</button>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <label style="display:block; font-family:'Prompt',sans-serif; font-size:14px; font-weight:500; margin-bottom:6px; color:var(--navy-800);">ภาคเรียน</label>
+      <select id="new-sem-select" class="grade-input" style="width:100%; text-align:left; border:1px solid var(--border); background:#fff; padding:8px 12px;">
+        <option value="1">ภาคเรียนที่ 1</option>
+        <option value="2">ภาคเรียนที่ 2</option>
+        <option value="3">ภาคเรียนที่ 3 / ภาคฤดูร้อน (Summer)</option>
+        <option value="transfer">วิชาเทียบโอน (Transfer Credit)</option>
+      </select>
+    </div>
+    <div id="new-year-wrap" style="margin-bottom: 16px;">
+      <label style="display:block; font-family:'Prompt',sans-serif; font-size:14px; font-weight:500; margin-bottom:6px; color:var(--navy-800);">ปีการศึกษา (ค.ศ. เช่น 2024-2025)</label>
+      <input type="text" id="new-year-input" class="grade-input" placeholder="เช่น 2024-2025" style="width:100%; text-align:left; border:1px solid var(--border); background:#fff; padding:8px 12px;" />
+    </div>
+    <div style="margin-bottom: 20px;">
+      <label style="display:flex; align-items:center; gap:8px; font-family:'Prompt',sans-serif; font-size:14px; color:var(--navy-800); cursor:pointer;">
+        <input type="checkbox" id="new-sem-is-current" />
+        <span>เป็นภาคการศึกษาที่กำลังศึกษาอยู่ (ยังไม่มีเกรด)</span>
+      </label>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button type="button" style="padding:8px 16px; border:1px solid var(--border); background:transparent; border-radius:6px; cursor:pointer; font-family:'Prompt',sans-serif;" onclick="closeAddSemesterModal()">ยกเลิก</button>
+      <button type="button" class="btn btn-primary" style="padding:8px 18px;" onclick="confirmAddSemester()">ตกลง</button>
     </div>
   </div>
 </div>

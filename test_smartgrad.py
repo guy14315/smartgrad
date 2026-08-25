@@ -112,5 +112,68 @@ class TestValidation(unittest.TestCase):
             CourseOverrideIn(grade="A++")
 
 
+class TestPrerequisites(unittest.TestCase):
+    """Test prerequisite handling and schema."""
+
+    def test_prerequisite_deduplication(self):
+        from models import Course, Prerequisite
+        from routers.curriculum import _course_to_out
+
+        course = Course(
+            course_code="05506240",
+            course_name_th="สถาปัตยกรรมและวิศวกรรมข้อมูลขนาดใหญ่",
+            course_name_en="BIG DATA ARCHITECTURE AND ENGINEERING",
+            credit=3,
+            credit_str="3(3-0-6)",
+            year=3,
+            semester=1,
+            prerequisites=[
+                Prerequisite(course_code="05506240", prereq_code="05506012"),
+                Prerequisite(course_code="05506240", prereq_code="05506012"),
+            ],
+        )
+        out = _course_to_out(course, {"05506240": 3})
+        self.assertEqual(out.prerequisites, ["05506012"])
+        self.assertEqual(len(out.prerequisites), 1)
+
+
+class TestPDFParser(unittest.TestCase):
+    """Test PDF transcript parsing."""
+
+    def test_parse_mytranscript_pdf(self):
+        from pathlib import Path
+        from parser import parse_student_info, parse_transcript
+
+        pdf_path = Path(__file__).parent / "mytranscript.pdf"
+        if not pdf_path.exists():
+            self.skipTest("mytranscript.pdf not found")
+
+        with open(pdf_path, "rb") as f:
+            student = parse_student_info(f)
+            courses = parse_transcript(f)
+
+        self.assertEqual(student.get("student_id"), "67050613")
+        self.assertIn("Achirayu", student.get("name", ""))
+        self.assertEqual(len(courses), 36)
+
+        # Verify transfer credit course
+        c_transfer = next(c for c in courses if c["code"] == "90644007")
+        self.assertEqual(c_transfer["name_en"], "FOUNDATION ENGLISH 1")
+        self.assertEqual(c_transfer["grade"], "S")
+
+        # Verify multi-line course name
+        c_ethics = next(c for c in courses if c["code"] == "05506015")
+        self.assertEqual(c_ethics["name_en"], "COMPUTER ETHICS: SOCIAL AND PROFESSIONAL ISSUES")
+
+        # Verify current semester courses (in-progress)
+        current_courses = [c for c in courses if c["is_current"]]
+        self.assertEqual(len(current_courses), 7)
+        current_codes = {c["code"] for c in current_courses}
+        self.assertIn("05506013", current_codes)
+        self.assertIn("90642111", current_codes)
+
+
 if __name__ == "__main__":
     unittest.main()
+
+

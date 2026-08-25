@@ -45,7 +45,7 @@ def _get_unique_passed_courses(transcript_courses: list[dict]) -> list[dict]:
     """Return unique passed courses, keeping the latest passed record per course code."""
     sorted_courses = sorted(
         transcript_courses,
-        key=lambda c: (c.get("academic_year") or 9999, c.get("semester") or 99)
+        key=lambda c: (str(c.get("academic_year") or "0000"), int(c.get("semester") or 0))
     )
     unique_passed: dict[str, dict] = {}
     for c in sorted_courses:
@@ -106,8 +106,8 @@ def _compute_timeline(transcript_courses: list[dict], curriculum_codes: dict[str
         if is_current or not grade or grade in NON_PASSING_GRADES:
             continue  # only show passed
 
-        label = f"เทอม {sem} ปีการศึกษา {yr}" if sem and yr else "ไม่ระบุเทอม"
-        key_sort = f"{yr}_{sem:02d}" if sem and yr else "9999_99"
+        label = f"เทอม {sem} ปีการศึกษา {yr}" if sem and yr else "เทียบโอน / ไม่ระบุเทอม"
+        key_sort = f"{yr}_{int(sem):02d}" if sem and yr else "0000_00"
 
         if label not in timeline:
             timeline[label] = {"key_sort": key_sort, "label": label, "courses": []}

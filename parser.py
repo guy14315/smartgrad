@@ -32,6 +32,7 @@ SKIP_PREFIXES = (
     "DEGREE",
     "PROGRAM",
     "(XX",
+    "CONTINUE NEXT COLUMN",
 )
 
 STUDENT_ID_PATTERNS = (
@@ -85,6 +86,26 @@ def parse_student_info(file) -> dict:
     return _parse_student_info_from_text(text)
 
 
+def _extract_page_lines(page: pdfplumber.page.Page) -> list[str]:
+    """Extract lines from a page, properly handling two-column layouts."""
+    mid_x = page.width / 2
+    words = page.extract_words()
+    # Look at words below the transcript header area
+    body_words = [w for w in words if w["top"] > 140]
+    right_words = [w for w in body_words if w["x0"] >= mid_x - 10]
+
+    # If substantial text exists in right column, crop and read left column then right column
+    if len(right_words) > 5:
+        left_crop = page.crop((0, 0, mid_x, page.height))
+        right_crop = page.crop((mid_x, 0, page.width, page.height))
+        text_left = left_crop.extract_text(layout=False) or ""
+        text_right = right_crop.extract_text(layout=False) or ""
+        return text_left.splitlines() + text_right.splitlines()
+
+    text = page.extract_text(layout=False) or ""
+    return text.splitlines()
+
+
 def parse_transcript(file) -> list[dict]:
     """Parse a KMITL transcript PDF.
 
@@ -106,10 +127,10 @@ def parse_transcript(file) -> list[dict]:
     last_semester_key: tuple | None = None
     seen_semesters: list[tuple] = []
 
+    file.seek(0)
     with pdfplumber.open(file) as pdf:
         for page in pdf.pages:
-            text = page.extract_text() or ""
-            for raw_line in text.splitlines():
+            for raw_line in _extract_page_lines(page):
                 line = raw_line.strip()
                 if not line:
                     continue
@@ -128,7 +149,7 @@ def parse_transcript(file) -> list[dict]:
 
                 # skip known noise lines
                 upper = line.upper()
-                if upper.startswith(SKIP_PREFIXES) or "TRANSCRIPT CLOSED" in upper:
+                if upper.startswith(SKIP_PREFIXES) or "TRANSCRIPT CLOSED" in upper or "CONTINUE NEXT COLUMN" in upper:
                     current_course = None
                     continue
 
@@ -152,6 +173,8 @@ def parse_transcript(file) -> list[dict]:
                 if current_course is not None and not upper.startswith(SKIP_PREFIXES):
                     current_course["name_en"] += " " + line
 
+    file.seek(0)
+
     # mark courses in the last semester with no grades as "current" (กำลังเรียน)
     if last_semester_key:
         for c in courses:
@@ -159,3 +182,4 @@ def parse_transcript(file) -> list[dict]:
                 c["is_current"] = True
 
     return courses
+

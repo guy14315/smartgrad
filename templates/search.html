@@ -176,7 +176,220 @@
     .badge-free { background: #FCE7F3; color: #DB2777; }
     .badge-alt { background: #EDE9FE; color: #7C3AED; }
 
+    /* Prerequisite Button & Status */
+    .btn-prereq {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: #FFF7ED;
+      color: #C2410C;
+      border: 1px solid #FDBA74;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .btn-prereq:hover {
+      background-color: #FFEDD5;
+      border-color: #FB923C;
+      color: #9A3412;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .no-prereq {
+      color: var(--gray-500);
+      font-size: 13px;
+    }
+
     .loading-box { text-align: center; padding: 48px; color: var(--text-muted); font-family: 'Prompt', sans-serif; }
+
+    /* Prerequisite Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.show {
+      display: flex;
+    }
+    .modal-box {
+      background: #FFFFFF;
+      border-radius: 12px;
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      border: 1px solid var(--border);
+      animation: modalFadeIn 0.2s ease-out;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-family: 'Prompt', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy-900);
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 24px;
+      line-height: 1;
+      color: var(--gray-500);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .modal-close:hover {
+      background: var(--gray-100);
+      color: var(--navy-900);
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .target-course-card {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .target-course-code {
+      font-family: monospace;
+      font-size: 13px;
+      color: var(--kmitl-orange-dark);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .target-course-name {
+      font-family: 'Prompt', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--navy-900);
+      margin-bottom: 2px;
+    }
+    .target-course-en {
+      font-size: 13px;
+      color: var(--gray-500);
+      margin-bottom: 10px;
+    }
+    .target-course-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .prereq-section-title {
+      font-family: 'Prompt', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy-800);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .prereq-count-badge {
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--gray-100);
+      color: var(--navy-700);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .prereq-item {
+      border: 1px solid var(--gray-200);
+      border-left: 4px solid var(--kmitl-orange);
+      background: #FFFFFF;
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    .prereq-item:hover {
+      border-color: var(--kmitl-orange-light);
+    }
+    .prereq-item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .prereq-code {
+      font-family: monospace;
+      font-weight: 600;
+      color: var(--kmitl-orange);
+      font-size: 13px;
+    }
+    .prereq-name-th {
+      font-family: 'Prompt', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy-900);
+      margin-bottom: 2px;
+    }
+    .prereq-name-en {
+      font-size: 12px;
+      color: var(--gray-500);
+    }
+    .modal-note {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #1E40AF;
+      margin-top: 16px;
+      line-height: 1.5;
+    }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      justify-content: flex-end;
+      background: var(--gray-50);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+    .btn-modal-close {
+      padding: 8px 18px;
+      border: 1px solid var(--gray-300);
+      background: #FFFFFF;
+      color: var(--navy-700);
+      border-radius: 6px;
+      font-family: 'Prompt', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-modal-close:hover {
+      background: var(--gray-100);
+      color: var(--navy-900);
+    }
 
   </style>
 </head>
@@ -202,6 +415,7 @@
         <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อวิชา หรือ รหัสวิชา..." />
         <select id="categorySelect" class="category-select">
           <option value="all">ทุกประเภทวิชา</option>
+          <option value="has_prereq">เฉพาะวิชาที่มีวิชาบังคับก่อน</option>
           <option value="ge">ศึกษาทั่วไป (GE)</option>
           <option value="core_math">คณิตศาสตร์/สถิติบังคับ</option>
           <option value="core_cs">วิชาบังคับ CS</option>
@@ -219,6 +433,7 @@
               <th>ชื่อวิชา</th>
               <th style="text-align:center;">หน่วยกิต</th>
               <th>ประเภทวิชา</th>
+              <th style="text-align:center;">วิชาบังคับก่อน</th>
             </tr>
           </thead>
           <tbody id="coursesBody"></tbody>
@@ -233,8 +448,40 @@
     </div>
   </div>
 
+  <!-- Prerequisite Details Modal -->
+  <div class="modal-overlay" id="prereqModal" onclick="handleBackdropClick(event)">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">รายละเอียดวิชาบังคับก่อน (Prerequisites)</h2>
+        <button type="button" class="modal-close" onclick="closePrereqModal()" aria-label="ปิดหน้าต่าง">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="target-course-card" id="modalTargetCourse">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="prereq-section-title">
+          <span>วิชาที่ต้องเรียนผ่านก่อนลงทะเบียนวิชานี้</span>
+          <span id="prereqCountBadge" class="prereq-count-badge"></span>
+        </div>
+
+        <div id="prereqListContainer">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <div class="modal-note">
+          หมายเหตุ: นักศึกษาต้องลงทะเบียนเรียนและได้ผลการเรียนผ่านในรายวิชาบังคับก่อนข้างต้น จึงจะมีสิทธิ์ลงทะเบียนเรียนในรายวิชานี้
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-modal-close" onclick="closePrereqModal()">ปิด</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let allCourses = [];
+    const coursesMap = new Map();
 
     const categoryBadges = {
       "ge": "badge-ge",
@@ -258,11 +505,11 @@
         });
         
         // Remove duplicates if any
-        const uniqueCoursesMap = new Map();
+        coursesMap.clear();
         courses.forEach(c => {
-          uniqueCoursesMap.set(c.course_code, c);
+          coursesMap.set(c.course_code, c);
         });
-        allCourses = Array.from(uniqueCoursesMap.values());
+        allCourses = Array.from(coursesMap.values());
 
         document.getElementById('loadingBox').style.display = 'none';
         document.getElementById('coursesTable').style.display = 'table';
@@ -281,9 +528,18 @@
         const matchSearch = (c.course_code.toLowerCase().includes(search) || 
                              (c.course_name_th && c.course_name_th.toLowerCase().includes(search)) || 
                              (c.course_name_en && c.course_name_en.toLowerCase().includes(search)));
-        const matchCat = (cat === 'all' || 
-                          (cat === 'free' && ['free', 'ge', 'elective'].includes(c.category)) || 
-                          c.category === cat);
+        
+        let matchCat = false;
+        if (cat === 'all') {
+          matchCat = true;
+        } else if (cat === 'has_prereq') {
+          matchCat = (c.prerequisites && c.prerequisites.length > 0);
+        } else if (cat === 'free') {
+          matchCat = ['free', 'ge', 'elective'].includes(c.category);
+        } else {
+          matchCat = (c.category === cat);
+        }
+
         return matchSearch && matchCat;
       });
 
@@ -314,7 +570,12 @@
         const tr = document.createElement('tr');
         const badgeClass = categoryBadges[c.category] || "badge-free";
         const badgeLabel = c.category_label || "วิชาเลือกเสรี";
+        const hasPrereq = c.prerequisites && c.prerequisites.length > 0;
         
+        const prereqHtml = hasPrereq 
+          ? `<button type="button" class="btn-prereq" onclick="openPrereqModal('${c.course_code}')">มีวิชาบังคับก่อน (${c.prerequisites.length})</button>`
+          : `<span class="no-prereq">-</span>`;
+
         tr.innerHTML = `
           <td style="font-family: monospace; color: var(--text-muted);">${c.course_code}</td>
           <td style="color: var(--navy-800); font-weight: 500;">
@@ -323,9 +584,93 @@
           </td>
           <td style="text-align: center; font-weight: 500;">${c.credit}</td>
           <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+          <td style="text-align: center;">${prereqHtml}</td>
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    function openPrereqModal(courseCode) {
+      const course = coursesMap.get(courseCode);
+      if (!course) return;
+
+      const targetBox = document.getElementById('modalTargetCourse');
+      const badgeClass = categoryBadges[course.category] || "badge-free";
+      const badgeLabel = course.category_label || "วิชาเลือกเสรี";
+
+      let planInfo = '';
+      if (course.year && course.semester) {
+        planInfo = ` • ชั้นปีที่ ${course.year} เทอม ${course.semester}`;
+      }
+
+      targetBox.innerHTML = `
+        <div class="target-course-code">${course.course_code}</div>
+        <div class="target-course-name">${course.course_name_th}</div>
+        <div class="target-course-en">${course.course_name_en || ''}</div>
+        <div class="target-course-meta">
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+          <span style="font-size: 13px; color: var(--navy-700); font-weight: 500;">${course.credit} หน่วยกิต${planInfo}</span>
+        </div>
+      `;
+
+      const prereqs = course.prerequisites || [];
+      document.getElementById('prereqCountBadge').textContent = `${prereqs.length} รายวิชา`;
+
+      const listContainer = document.getElementById('prereqListContainer');
+      listContainer.innerHTML = '';
+
+      if (prereqs.length === 0) {
+        listContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 14px; padding: 12px 0;">ไม่มีรายวิชาบังคับก่อน</div>`;
+      } else {
+        prereqs.forEach(prereqCode => {
+          const prereqCourse = coursesMap.get(prereqCode);
+          const item = document.createElement('div');
+          item.className = 'prereq-item';
+
+          if (prereqCourse) {
+            const pBadgeClass = categoryBadges[prereqCourse.category] || "badge-free";
+            const pBadgeLabel = prereqCourse.category_label || "วิชาเลือกเสรี";
+            item.innerHTML = `
+              <div class="prereq-item-header">
+                <span class="prereq-code">${prereqCourse.course_code}</span>
+                <span class="badge ${pBadgeClass}">${pBadgeLabel}</span>
+              </div>
+              <div class="prereq-name-th">${prereqCourse.course_name_th}</div>
+              <div class="prereq-name-en">${prereqCourse.course_name_en || ''}</div>
+              <div style="font-size: 12px; color: var(--navy-700); margin-top: 4px;">จำนวน ${prereqCourse.credit} หน่วยกิต</div>
+            `;
+          } else {
+            item.innerHTML = `
+              <div class="prereq-item-header">
+                <span class="prereq-code">${prereqCode}</span>
+                <span class="badge badge-free">รายวิชาในหลักสูตร</span>
+              </div>
+              <div class="prereq-name-th">รหัสวิชา: ${prereqCode}</div>
+            `;
+          }
+          listContainer.appendChild(item);
+        });
+      }
+
+      document.getElementById('prereqModal').classList.add('show');
+      document.addEventListener('keydown', handleEscKey);
+    }
+
+    function closePrereqModal() {
+      document.getElementById('prereqModal').classList.remove('show');
+      document.removeEventListener('keydown', handleEscKey);
+    }
+
+    function handleBackdropClick(event) {
+      if (event.target.id === 'prereqModal') {
+        closePrereqModal();
+      }
+    }
+
+    function handleEscKey(event) {
+      if (event.key === 'Escape') {
+        closePrereqModal();
+      }
     }
 
     document.getElementById('searchInput').addEventListener('input', renderTable);

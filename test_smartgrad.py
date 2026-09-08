@@ -138,42 +138,98 @@ class TestPrerequisites(unittest.TestCase):
 
 
 class TestPDFParser(unittest.TestCase):
-    """Test PDF transcript parsing."""
+    """Test PDF transcript parsing – supports multiple transcript files."""
 
-    def test_parse_mytranscript_pdf(self):
+    # ------------------------------------------------------------------
+    # Expected data per transcript file.
+    # เพิ่มไฟล์ใหม่ได้โดยเพิ่ม entry ที่นี่ + วางไฟล์ PDF ไว้ข้าง test
+    # ------------------------------------------------------------------
+    TRANSCRIPT_TEST_DATA = {
+        "mytranscript.pdf": {
+            "student_id": "67050476",
+            "name_contains": "Ratchaphon",
+            "total_courses": 35,
+            "current_count": 6,
+            "current_codes_sample": {"05506014", "05506210"},
+            # วิชาที่ต้อง parse ชื่อยาวข้ามบรรทัดให้ถูกต้อง
+            "multi_line_course": ("05506015", "COMPUTER ETHICS: SOCIAL AND PROFESSIONAL ISSUES"),
+            # วิชาเทียบโอน
+            "transfer_course": ("90644007", "FOUNDATION ENGLISH 1", "S"),
+        },
+        "mytranscript_achirayu.pdf": {
+            "student_id": "67050613",
+            "name_contains": "Achirayu",
+            "total_courses": 36,
+            "current_count": 7,
+            "current_codes_sample": {"05506013", "90642111"},
+            "multi_line_course": ("05506015", "COMPUTER ETHICS: SOCIAL AND PROFESSIONAL ISSUES"),
+            "transfer_course": ("90644007", "FOUNDATION ENGLISH 1", "S"),
+        },
+    }
+
+    def test_parse_transcripts(self):
+        """Parse each available transcript PDF and verify against expected data."""
         from pathlib import Path
         from parser import parse_student_info, parse_transcript
 
-        pdf_path = Path(__file__).parent / "mytranscript.pdf"
-        if not pdf_path.exists():
-            self.skipTest("mytranscript.pdf not found")
+        tested = 0
+        for filename, expected in self.TRANSCRIPT_TEST_DATA.items():
+            pdf_path = Path(__file__).parent / filename
+            if not pdf_path.exists():
+                continue
 
-        with open(pdf_path, "rb") as f:
-            student = parse_student_info(f)
-            courses = parse_transcript(f)
+            with self.subTest(file=filename):
+                with open(pdf_path, "rb") as f:
+                    student = parse_student_info(f)
+                    courses = parse_transcript(f)
 
-        self.assertEqual(student.get("student_id"), "67050613")
-        self.assertIn("Achirayu", student.get("name", ""))
-        self.assertEqual(len(courses), 36)
+                # --- Student identity ---
+                self.assertEqual(
+                    student.get("student_id"), expected["student_id"],
+                    f"[{filename}] student_id mismatch",
+                )
+                self.assertIn(
+                    expected["name_contains"], student.get("name", ""),
+                    f"[{filename}] name should contain '{expected['name_contains']}'",
+                )
 
-        # Verify transfer credit course
-        c_transfer = next(c for c in courses if c["code"] == "90644007")
-        self.assertEqual(c_transfer["name_en"], "FOUNDATION ENGLISH 1")
-        self.assertEqual(c_transfer["grade"], "S")
+                # --- Total courses parsed ---
+                self.assertEqual(
+                    len(courses), expected["total_courses"],
+                    f"[{filename}] total courses mismatch",
+                )
 
-        # Verify multi-line course name
-        c_ethics = next(c for c in courses if c["code"] == "05506015")
-        self.assertEqual(c_ethics["name_en"], "COMPUTER ETHICS: SOCIAL AND PROFESSIONAL ISSUES")
+                # --- Transfer credit course ---
+                tc_code, tc_name, tc_grade = expected["transfer_course"]
+                c_transfer = next((c for c in courses if c["code"] == tc_code), None)
+                self.assertIsNotNone(c_transfer, f"[{filename}] transfer course {tc_code} not found")
+                self.assertEqual(c_transfer["name_en"], tc_name)
+                self.assertEqual(c_transfer["grade"], tc_grade)
 
-        # Verify current semester courses (in-progress)
-        current_courses = [c for c in courses if c["is_current"]]
-        self.assertEqual(len(current_courses), 7)
-        current_codes = {c["code"] for c in current_courses}
-        self.assertIn("05506013", current_codes)
-        self.assertIn("90642111", current_codes)
+                # --- Multi-line course name ---
+                ml_code, ml_name = expected["multi_line_course"]
+                c_ml = next((c for c in courses if c["code"] == ml_code), None)
+                self.assertIsNotNone(c_ml, f"[{filename}] multi-line course {ml_code} not found")
+                self.assertEqual(c_ml["name_en"], ml_name)
+
+                # --- Currently enrolled (in-progress) ---
+                current_courses = [c for c in courses if c["is_current"]]
+                self.assertEqual(
+                    len(current_courses), expected["current_count"],
+                    f"[{filename}] in-progress count mismatch",
+                )
+                current_codes = {c["code"] for c in current_courses}
+                for sample_code in expected["current_codes_sample"]:
+                    self.assertIn(
+                        sample_code, current_codes,
+                        f"[{filename}] expected {sample_code} in current courses",
+                    )
+
+                tested += 1
+
+        if tested == 0:
+            self.skipTest("No transcript PDF files found")
 
 
 if __name__ == "__main__":
     unittest.main()
-
-

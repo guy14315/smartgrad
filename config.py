@@ -56,3 +56,10 @@ CATEGORIES = {
 # Upload limits
 # ---------------------------------------------------------------------------
 MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# ---------------------------------------------------------------------------
+# Application defaults
+# ---------------------------------------------------------------------------
+DEFAULT_CURRICULUM_ID = "CS2564"
+BUDDHIST_ERA_OFFSET = 2500  # พ.ศ. = ค.ศ. + 543, แต่ระบบ KMITL ใช้ 25xx จากรหัสนักศึกษา 2 หลักแรก
+SESSION_SECRET_DEFAULT = "smartgrad-demo-session-secret"  # ⚠️ Override via SESSION_SECRET env var in production

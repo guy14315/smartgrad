@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
+from config import SESSION_SECRET_DEFAULT
 from dashboard import compute_dashboard, compute_study_plan
 from database import AsyncSessionLocal, engine
 from models import Base
@@ -66,7 +67,7 @@ app = FastAPI(
 )
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SESSION_SECRET", "smartgrad-demo-session-secret"),
+    secret_key=os.environ.get("SESSION_SECRET", SESSION_SECRET_DEFAULT),
     https_only=os.environ.get("SESSION_HTTPS_ONLY", "false").lower() == "true",
 )
 

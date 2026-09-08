@@ -913,6 +913,51 @@
           + เพิ่มภาคการศึกษาใหม่
         </button>
 
+        <!-- English Elective Verification -->
+        <div class="card" style="margin-top: 24px; border: 1px solid var(--border); background: var(--gray-50); border-radius: var(--radius); padding: 20px;">
+          <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+            <div style="font-size: 18px; color: var(--kmitl-orange); font-weight: bold; line-height: 1.2;">!</div>
+            <div>
+              <h3 style="margin: 0 0 4px 0; font-family: 'Prompt', sans-serif; font-size: 16px; color: var(--navy-800);">
+                การตรวจสอบวิชาเลือกภาษาอังกฤษ (GE English Elective)
+              </h3>
+              <p style="margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5;">
+                ตามเกณฑ์หลักสูตรหมวดวิชาศึกษาทั่วไป นักศึกษาต้องเลือกเรียนวิชาภาษาอังกฤษเพิ่มอีกอย่างน้อย 1 วิชา (3 หน่วยกิต) นอกเหนือจาก Foundation English 1 และ 2
+              </p>
+            </div>
+          </div>
+          
+          <div style="margin-top: 14px; padding: 16px; background: #fff; border: 1px solid var(--gray-200); border-radius: 8px;">
+            <div style="font-weight: 600; font-size: 14px; color: var(--navy-800); margin-bottom: 12px;">
+              ท่านได้ลงเรียนหรือสอบผ่านวิชาเลือกภาษาอังกฤษแล้วหรือไม่? <span style="color: var(--danger);">*</span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="radio" name="ge-english-status" id="ge-eng-radio-not-taken" value="not_taken" onchange="toggleGeEnglishSelect(false)">
+                <span><strong>ยังไม่ได้ลงเรียน / ยังไม่ผ่าน</strong> (ระบบจะตั้งเป็นวิชาที่ต้องวางแผนเรียนในเทอมถัดไป)</span>
+              </label>
+              
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="radio" name="ge-english-status" id="ge-eng-radio-taken" value="taken" onchange="toggleGeEnglishSelect(true)">
+                <span><strong>ลงเรียนแล้ว / กำลังเรียนอยู่</strong> (เลือกรายวิชาที่ตรงจากรายการใน Transcript)</span>
+              </label>
+            </div>
+
+            <div id="ge-english-select-wrap" style="margin-top: 14px; margin-left: 26px; display: none;">
+              <label style="display: block; font-size: 13px; color: var(--navy-700); margin-bottom: 6px; font-weight: 500;">
+                เลือกวิชาภาษาอังกฤษที่ท่านได้ลงเรียน:
+              </label>
+              <select id="ge-english-course-select" onchange="onGeEnglishCourseSelectChange()" style="width: 100%; max-width: 520px; padding: 8px 12px; border: 1px solid var(--gray-300); border-radius: 6px; font-family: 'Prompt', sans-serif; font-size: 14px; background: #fff;">
+                <option value="">-- กรุณาเลือกวิชาภาษาอังกฤษจาก Transcript --</option>
+              </select>
+              <div id="ge-english-hint" style="font-size: 13px; color: var(--success); margin-top: 6px; display: none; font-weight: 500;">
+                ✓ ระบบตรวจพบวิชาภาษาอังกฤษและเลือกให้อัตโนมัติ (สามารถเปลี่ยนได้หากต้องการ)
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="confirm-bar">
           <p>ข้อมูลถูกต้องและครบถ้วนแล้ว กดปุ่มเพื่อบันทึกและคำนวณผล</p>
           <div style="display:flex; align-items:center;">
@@ -1072,6 +1117,7 @@
   let nextCustomId = 1;
   let fileObj = null;
   let baselineStats = { ge:0, elective:0, free:0 };
+  let selectedEnglishElectiveCode = null;
 
   const NON_PASS = new Set(['F','W','WU','U']);
   const CAT_COLORS = {
@@ -1080,6 +1126,10 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    const savedEng = sessionStorage.getItem('smartgrad_english_elective');
+    if (savedEng !== null && savedEng !== '') {
+      selectedEnglishElectiveCode = savedEng;
+    }
     const saved = sessionStorage.getItem('smartgrad_state');
     if (saved) {
       try {
@@ -1292,6 +1342,8 @@
       <div class="review-badge">หน่วยกิตที่ผ่านการประเมิน: <strong>${passedCredit}</strong> หน่วยกิต</div>
       <div class="review-badge">ชื่อไฟล์เอกสาร: <strong style="color:var(--navy-700)">${fileObj ? fileObj.name : 'Transcript'}</strong></div>
     `;
+
+    setupEnglishElectiveUI(courses);
   }
 
   function addCourseToSemester(semester, academic_year, is_current) {
@@ -1388,9 +1440,146 @@
   }
 
   /* ===================================================
+     ENGLISH ELECTIVE DETECTION & UI
+  =================================================== */
+  function detectEnglishElective(courses) {
+    const candidates = [];
+    const excludeCodes = new Set(['90644007', '90644008', '90101001', '90101002']);
+    const nonEngKeywords = ['THAI', 'CHINESE', 'JAPANESE', 'KOREAN', 'FRENCH', 'GERMAN', 'ภาษาไทย', 'ภาษาจีน', 'ภาษาญี่ปุ่น', 'ภาษาเกาหลี', 'ภาษาฝรั่งเศส', 'ภาษาเยอรมัน'];
+
+    for (const c of courses) {
+      const code = (c.code || '').trim();
+      const name = (c.name_en || c.name_th || '').toUpperCase();
+      const grade = (c.grade || '').toUpperCase();
+      const isPassOrCurrent = c.is_current || (grade && !NON_PASS.has(grade));
+
+      if (!isPassOrCurrent) continue;
+      if (excludeCodes.has(code)) continue;
+
+      const hasNonEng = nonEngKeywords.some(kw => name.includes(kw));
+      if (hasNonEng) continue;
+
+      const isGeLangCode = code.startsWith('90644') || code.startsWith('90101');
+      const hasEngKeyword = name.includes('ENGLISH') || name.includes('WRITING') || 
+                            name.includes('SPEAKING') || name.includes('LISTENING') || 
+                            name.includes('READING') || name.includes('COMMUNICATION') || 
+                            name.includes('CONVERSATION') || name.includes('PRESENTATION') ||
+                            name.includes('TOEIC') || name.includes('TOEFL') || name.includes('IELTS');
+
+      if (isGeLangCode || hasEngKeyword) {
+        candidates.push(c);
+      }
+    }
+    return candidates;
+  }
+
+  function setupEnglishElectiveUI(courses) {
+    const selectEl = document.getElementById('ge-english-course-select');
+    const hintEl = document.getElementById('ge-english-hint');
+    const radioNotTaken = document.getElementById('ge-eng-radio-not-taken');
+    const radioTaken = document.getElementById('ge-eng-radio-taken');
+    const wrapEl = document.getElementById('ge-english-select-wrap');
+    if (!selectEl) return;
+
+    const candidates = detectEnglishElective(courses);
+
+    let optionsHtml = '<option value="">-- กรุณาเลือกวิชาภาษาอังกฤษจาก Transcript --</option>';
+
+    if (candidates.length > 0) {
+      optionsHtml += '<optgroup label="วิชาที่ตรวจพบเข้าข่ายวิชาภาษาอังกฤษ">';
+      candidates.forEach(c => {
+        const label = `${c.code} ${c.name_en || c.name_th} (${c.credit} นก.) ${c.is_current ? '[กำลังเรียน]' : (c.grade ? `[เกรด ${c.grade}]` : '')}`;
+        optionsHtml += `<option value="${c.code}">${label}</option>`;
+      });
+      optionsHtml += '</optgroup>';
+    }
+
+    const candCodes = new Set(candidates.map(c => c.code));
+    candCodes.add('90644007');
+    candCodes.add('90644008');
+    const otherCourses = courses.filter(c => c.code && !candCodes.has(c.code));
+    if (otherCourses.length > 0) {
+      optionsHtml += '<optgroup label="รายวิชาอื่นๆ ใน Transcript">';
+      otherCourses.forEach(c => {
+        const label = `${c.code} ${c.name_en || c.name_th} (${c.credit} นก.) ${c.is_current ? '[กำลังเรียน]' : (c.grade ? `[เกรด ${c.grade}]` : '')}`;
+        optionsHtml += `<option value="${c.code}">${label}</option>`;
+      });
+      optionsHtml += '</optgroup>';
+    }
+
+    selectEl.innerHTML = optionsHtml;
+
+    if (selectedEnglishElectiveCode) {
+      radioTaken.checked = true;
+      wrapEl.style.display = 'block';
+      selectEl.value = selectedEnglishElectiveCode;
+      if (hintEl) hintEl.style.display = 'none';
+    } else if (candidates.length > 0) {
+      radioTaken.checked = true;
+      wrapEl.style.display = 'block';
+      selectEl.value = candidates[0].code;
+      selectedEnglishElectiveCode = candidates[0].code;
+      if (hintEl) {
+        hintEl.style.display = 'block';
+        hintEl.textContent = `✓ ระบบตรวจพบวิชา "${candidates[0].code} ${candidates[0].name_en || candidates[0].name_th}" และเลือกให้อัตโนมัติ`;
+      }
+    } else {
+      radioNotTaken.checked = true;
+      wrapEl.style.display = 'none';
+      selectedEnglishElectiveCode = null;
+      if (hintEl) hintEl.style.display = 'none';
+    }
+  }
+
+  function toggleGeEnglishSelect(isTaken) {
+    const wrapEl = document.getElementById('ge-english-select-wrap');
+    const selectEl = document.getElementById('ge-english-course-select');
+    const hintEl = document.getElementById('ge-english-hint');
+    if (isTaken) {
+      wrapEl.style.display = 'block';
+      selectedEnglishElectiveCode = selectEl.value || null;
+    } else {
+      wrapEl.style.display = 'none';
+      selectedEnglishElectiveCode = null;
+      if (hintEl) hintEl.style.display = 'none';
+    }
+  }
+
+  function onGeEnglishCourseSelectChange() {
+    const selectEl = document.getElementById('ge-english-course-select');
+    const hintEl = document.getElementById('ge-english-hint');
+    selectedEnglishElectiveCode = selectEl.value || null;
+    if (hintEl) hintEl.style.display = 'none';
+  }
+
+  /* ===================================================
      STEP 2 → 3: Confirm & Compute
   =================================================== */
   async function confirmAndCompute() {
+    const radioTaken = document.getElementById('ge-eng-radio-taken');
+    const radioNotTaken = document.getElementById('ge-eng-radio-not-taken');
+
+    if (radioTaken && radioNotTaken) {
+      if (!radioTaken.checked && !radioNotTaken.checked) {
+        alert('กรุณาตอบคำถาม: ท่านได้ลงเรียนหรือสอบผ่านวิชาเลือกภาษาอังกฤษ (GE English Elective) แล้วหรือไม่');
+        const card = radioNotTaken.closest('.card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      if (radioTaken.checked) {
+        const selectEl = document.getElementById('ge-english-course-select');
+        if (!selectEl.value) {
+          alert('กรุณาเลือกรายวิชาภาษาอังกฤษที่ท่านได้ลงเรียนจากรายการ');
+          selectEl.focus();
+          return;
+        }
+        selectedEnglishElectiveCode = selectEl.value;
+      } else {
+        selectedEnglishElectiveCode = null;
+      }
+      sessionStorage.setItem('smartgrad_english_elective', selectedEnglishElectiveCode || '');
+    }
+
     document.getElementById('confirm-btn').disabled = true;
     document.getElementById('confirm-spinner').style.display = 'inline-flex';
 
@@ -1671,6 +1860,8 @@
 
   function resetToUpload() {
     sessionStorage.removeItem('smartgrad_state');
+    sessionStorage.removeItem('smartgrad_english_elective');
+    selectedEnglishElectiveCode = null;
     fileObj = null;
     parsedCourses = [];
     parsedStudent = null;
@@ -1678,6 +1869,14 @@
     document.getElementById('file-name-display').textContent = '';
     document.getElementById('selected-file').classList.remove('show');
     document.getElementById('parse-btn').disabled = true;
+    const rNotTaken = document.getElementById('ge-eng-radio-not-taken');
+    const rTaken = document.getElementById('ge-eng-radio-taken');
+    if (rNotTaken) rNotTaken.checked = false;
+    if (rTaken) rTaken.checked = false;
+    const wEl = document.getElementById('ge-english-select-wrap');
+    if (wEl) wEl.style.display = 'none';
+    const hEl = document.getElementById('ge-english-hint');
+    if (hEl) hEl.style.display = 'none';
     hideUploadError();
     goToStep(1);
   }
@@ -1819,7 +2018,22 @@
             remaining -= cr;
         }
     };
-    addBlocks(d.remaining_ge_credits - sysPlannedGe, 'วิชาศึกษาทั่วไป (GE)', 'ge');
+
+    let remainingGeForPool = Math.max(0, d.remaining_ge_credits - sysPlannedGe);
+    if (!selectedEnglishElectiveCode && remainingGeForPool > 0) {
+      let cr = Math.min(3, remainingGeForPool);
+      let engId = 'gen_ge_eng_' + nextCustomId++;
+      pool.innerHTML += `
+        <div class="plan-course-row draggable-course sys-course" draggable="true" id="${engId}" data-cat="ge" data-credit="${cr}" ondragstart="dragStart(event)" ondragend="dragEnd(event)" style="position:relative; border-left:4px solid var(--kmitl-orange);">
+          <div class="plan-course-code" style="color:var(--kmitl-orange); font-weight:600;"><span style="position:absolute; left:0; color:var(--text-muted);">⋮⋮</span> GE ENG</div>
+          <div class="plan-course-name">วิชาเลือกทางภาษา (English Elective)</div>
+          <span class="plan-badge required" style="background:#FFF7ED; color:#C2410C; border:1px solid #FDBA74;">บังคับ 1 วิชา</span>
+          <div class="plan-course-credit">${cr} นก.</div>
+        </div>`;
+      remainingGeForPool = Math.max(0, remainingGeForPool - cr);
+    }
+
+    addBlocks(remainingGeForPool, 'วิชาศึกษาทั่วไป (GE)', 'ge');
     addBlocks(d.remaining_elective_credits - sysPlannedElective, 'วิชาเลือกเฉพาะสาขา', 'elective');
     addBlocks(d.remaining_free_credits - sysPlannedFree, 'วิชาเลือกเสรี', 'free');
     
@@ -1895,9 +2109,13 @@
     // Suggestions
     const sugEl = document.getElementById('plan-suggestions');
     const sugListEl = document.getElementById('plan-suggestions-list');
-    if (d.suggestions.length > 0) {
+    let finalSuggestions = [...(d.suggestions || [])];
+    if (!selectedEnglishElectiveCode) {
+      finalSuggestions.push('ตามเกณฑ์หลักสูตรหมวด GE นักศึกษาต้องเลือกเรียนวิชาเลือกภาษาอังกฤษเพิ่มอีกอย่างน้อย 1 วิชา (3 หน่วยกิต)');
+    }
+    if (finalSuggestions.length > 0) {
       sugEl.style.display = 'block';
-      sugListEl.innerHTML = d.suggestions.map(s => `<li><span></span> ${s}</li>`).join('');
+      sugListEl.innerHTML = finalSuggestions.map(s => `<li><span style="font-size:16px;">💡</span> ${s}</li>`).join('');
     } else {
       sugEl.style.display = 'none';
     }

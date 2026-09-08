@@ -19,7 +19,7 @@ from models import (
     Prerequisite,
 )
 from parser import parse_transcript
-from config import NON_PASSING_GRADES, COURSE_CODE_PATTERN, MAX_UPLOAD_SIZE_BYTES, VALID_GRADES_PATTERN
+from config import BUDDHIST_ERA_OFFSET, COURSE_CODE_PATTERN, DEFAULT_CURRICULUM_ID, MAX_UPLOAD_SIZE_BYTES, NON_PASSING_GRADES, VALID_GRADES_PATTERN
 from services import get_active_transcript, load_curriculum_dict, transcript_courses_to_list
 
 import logging
@@ -134,7 +134,7 @@ async def upload_transcript(
     result = await db.execute(select(Student).where(Student.student_id == student_id))
     student = result.scalars().first()
     if not student:
-        admission_year = 2500 + int(student_id[:2])
+        admission_year = BUDDHIST_ERA_OFFSET + int(student_id[:2])
         advisor_result = await db.execute(
             select(Advisor).where(Advisor.cohort_year == admission_year)
         )
@@ -146,7 +146,7 @@ async def upload_transcript(
             email=f"{student_id}@kmitl.ac.th",
             admission_year=admission_year,
             advisor_id=advisor.advisor_id if advisor else None,
-            curriculum_id="CS2564",
+            curriculum_id=DEFAULT_CURRICULUM_ID,
         )
         db.add(student)
         await db.flush()
@@ -223,15 +223,12 @@ async def get_dashboard(student_id: str, db: AsyncSession = Depends(get_db)):
     - % ความก้าวหน้า
     - รายวิชาที่เหลือพร้อมสถานะ Prerequisite
     """
-    await _get_student_or_404(student_id, db)
+    student = await _get_student_or_404(student_id, db)
     transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript ในระบบ กรุณาอัปโหลดก่อน")
 
     parsed_courses = transcript_courses_to_list(transcript.courses)
-    
-    # ดึง student มาเพื่อดู curriculum_id
-    student = await _get_student_or_404(student_id, db)
     curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     return compute_dashboard(parsed_courses, curriculum)
 
@@ -329,7 +326,7 @@ async def simulate_progress(
     จำลองสถานะความก้าวหน้าหากวิชาที่กำลังเรียนถูกนับเป็น 'ผ่าน'
     ช่วย requirement: นักศึกษาต้องสามารถจำลองสถานะความก้าวหน้าโดยนับรวมรายวิชาที่กำลังศึกษา
     """
-    await _get_student_or_404(student_id, db)
+    student = await _get_student_or_404(student_id, db)
     for code in body.current_course_codes:
         if not COURSE_CODE_PATTERN.match(code):
             raise HTTPException(status_code=400, detail=f"รหัสวิชาไม่ถูกต้อง: {code}")
@@ -355,8 +352,6 @@ async def simulate_progress(
                 "credit": c.credit,
                 "grade": "S",  # simulated pass
             })
-
-    student = await _get_student_or_404(student_id, db)
     curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     dashboard = compute_dashboard(parsed_courses, curriculum)
     dashboard["simulated"] = True

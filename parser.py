@@ -1,7 +1,6 @@
 """Parser for KMITL transcript PDFs – extracts courses WITH semester/year context."""
 
 import re
-from typing import Optional
 
 import pdfplumber
 

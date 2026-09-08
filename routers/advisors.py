@@ -1,6 +1,5 @@
 """API router: อาจารย์ที่ปรึกษา – login, รายงาน"""
 
-import hashlib
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request

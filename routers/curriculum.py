@@ -1,7 +1,7 @@
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,19 +25,42 @@ class PrereqOut(BaseModel):
 
 
 class CurriculumCategoryIn(BaseModel):
-    key: str
-    label: str
-    target_credits: int
-    color: str | None = None
-    sort_order: int = 0
+    category_code: str
+    category_name: str
+    required_credits: int
+
+    @model_validator(mode="before")
+    @classmethod
+    def handle_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "category_code" not in data and "key" in data:
+                data["category_code"] = data["key"]
+            if "category_name" not in data and "label" in data:
+                data["category_name"] = data["label"]
+            if "required_credits" not in data and "target_credits" in data:
+                data["required_credits"] = data["target_credits"]
+        return data
 
 
 class CurriculumCategoryOut(BaseModel):
-    key: str
-    label: str
-    target_credits: int
-    color: str | None = None
-    sort_order: int = 0
+    category_code: str
+    category_name: str
+    required_credits: int
+
+    @computed_field
+    @property
+    def key(self) -> str:
+        return self.category_code
+
+    @computed_field
+    @property
+    def label(self) -> str:
+        return self.category_name
+
+    @computed_field
+    @property
+    def target_credits(self) -> int:
+        return self.required_credits
 
     model_config = {"from_attributes": True}
 
@@ -174,11 +197,9 @@ async def create_curriculum(body: CurriculumCreateIn, db: AsyncSession = Depends
     for cat in body.categories:
         c_cat = CurriculumCategory(
             curriculum_id=curr.curriculum_id,
-            key=cat.key,
-            label=cat.label,
-            target_credits=cat.target_credits,
-            color=cat.color,
-            sort_order=cat.sort_order,
+            category_code=cat.category_code,
+            category_name=cat.category_name,
+            required_credits=cat.required_credits,
         )
         db.add(c_cat)
 

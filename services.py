@@ -77,6 +77,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # Curriculum config loader  (NEW – DB-based category/credit config)
 # ---------------------------------------------------------------------------
 
+DEFAULT_CATEGORY_COLORS: dict[str, str] = {
+    "ge": "#6366f1",
+    "general_education": "#6366f1",
+    "core_math": "#0ea5e9",
+    "math_science": "#0ea5e9",
+    "core_cs": "#10b981",
+    "major_core": "#10b981",
+    "major_required": "#10b981",
+    "elective": "#f59e0b",
+    "major_elective": "#f59e0b",
+    "free": "#ec4899",
+    "free_elective": "#ec4899",
+    "alternative": "#8b5cf6",
+    "alternative_study": "#8b5cf6",
+    "special_track": "#8b5cf6",
+}
+
+
 def _default_categories_config() -> dict:
     """Return the hardcoded CS2564 config as a fallback."""
     return {
@@ -113,11 +131,15 @@ async def load_curriculum_config(
         return _default_categories_config()
 
     categories: dict[str, dict] = {}
-    for cat in curr.categories:          # already ordered by sort_order
-        categories[cat.key] = {
-            "label": cat.label,
-            "target": cat.target_credits,
-            "color": cat.color or "#888888",
+    for cat in curr.categories:          # ordered by id
+        code = getattr(cat, "category_code", getattr(cat, "key", "other"))
+        name = getattr(cat, "category_name", getattr(cat, "label", code))
+        target = getattr(cat, "required_credits", getattr(cat, "target_credits", 0))
+        color = DEFAULT_CATEGORY_COLORS.get(code, "#888888")
+        categories[code] = {
+            "label": name,
+            "target": target,
+            "color": color,
         }
 
     return {

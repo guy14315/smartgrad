@@ -18,11 +18,9 @@ CREATE TABLE IF NOT EXISTS curriculums (
 CREATE TABLE IF NOT EXISTS curriculum_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     curriculum_id VARCHAR(50) NOT NULL,
-    key VARCHAR(50) NOT NULL,
-    label VARCHAR(255) NOT NULL,
-    target_credits INTEGER NOT NULL DEFAULT 0,
-    color VARCHAR(20),
-    sort_order INTEGER NOT NULL DEFAULT 0,
+    category_code VARCHAR(50) NOT NULL,
+    category_name VARCHAR(255) NOT NULL,
+    required_credits INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (curriculum_id) REFERENCES curriculums(curriculum_id)
 );
 
@@ -105,13 +103,13 @@ INSERT OR IGNORE INTO curriculums (curriculum_id, name, year, total_credits_targ
 ('CS2564', 'วิทยาการคอมพิวเตอร์', 2564, 135, 22);
 
 -- Curriculum category definitions for CS2564
-INSERT OR IGNORE INTO curriculum_categories (curriculum_id, key, label, target_credits, color, sort_order) VALUES
-('CS2564', 'ge',          'ศึกษาทั่วไป (GE)',      30, '#6366f1', 1),
-('CS2564', 'core_math',   'คณิตศาสตร์/สถิติบังคับ', 18, '#0ea5e9', 2),
-('CS2564', 'core_cs',     'วิชาบังคับ CS',          57, '#10b981', 3),
-('CS2564', 'elective',    'วิชาเลือกเฉพาะสาขา',    18, '#f59e0b', 4),
-('CS2564', 'free',        'วิชาเลือกเสรี',          6,  '#ec4899', 5),
-('CS2564', 'alternative', 'การศึกษาทางเลือก',      6,  '#8b5cf6', 6);
+INSERT OR IGNORE INTO curriculum_categories (curriculum_id, category_code, category_name, required_credits) VALUES
+('CS2564', 'ge',          'ศึกษาทั่วไป (GE)',      30),
+('CS2564', 'core_math',   'คณิตศาสตร์/สถิติบังคับ', 18),
+('CS2564', 'core_cs',     'วิชาบังคับ CS',          57),
+('CS2564', 'elective',    'วิชาเลือกเฉพาะสาขา',    18),
+('CS2564', 'free',        'วิชาเลือกเสรี',          6),
+('CS2564', 'alternative', 'การศึกษาทางเลือก',      6);
 
 INSERT OR IGNORE INTO courses (course_code, curriculum_id, course_name_th, course_name_en, credit_str, credit, year, semester, plan_type, prereq_source, category) VALUES
 -- Year 1 Semester 1

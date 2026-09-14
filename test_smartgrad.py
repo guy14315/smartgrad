@@ -1073,6 +1073,25 @@ class TestMultiCurriculum(unittest.TestCase):
         for term in plan["plan_terms"]:
             self.assertEqual(term["max_credits"], 18)
 
+    def test_curriculum_category_model_and_dynamic_color(self):
+        """Test lean CurriculumCategory model: category_code, category_name, required_credits."""
+        from models import CurriculumCategory
+        from services import DEFAULT_CATEGORY_COLORS
+
+        cat = CurriculumCategory(
+            curriculum_id="CS2564",
+            category_code="major_core",
+            category_name="วิชาเฉพาะบังคับ",
+            required_credits=57,
+        )
+        self.assertEqual(cat.category_code, "major_core")
+        self.assertEqual(cat.category_name, "วิชาเฉพาะบังคับ")
+        self.assertEqual(cat.required_credits, 57)
+        # Check that color is resolved in code via DEFAULT_CATEGORY_COLORS
+        self.assertEqual(DEFAULT_CATEGORY_COLORS.get("major_core"), "#10b981")
+        self.assertEqual(DEFAULT_CATEGORY_COLORS.get("general_education"), "#6366f1")
+        self.assertEqual(DEFAULT_CATEGORY_COLORS.get("non_existent", "#888888"), "#888888")
+
 
 if __name__ == "__main__":
     unittest.main()

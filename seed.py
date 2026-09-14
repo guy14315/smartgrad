@@ -63,8 +63,15 @@ async def run_migrations(session: AsyncSession) -> None:
             logger.info("[seed] Adding max_credits_per_semester column to curriculums table")
             await session.execute(text("ALTER TABLE curriculums ADD COLUMN max_credits_per_semester INTEGER"))
 
-    # --- Ensure curriculum_categories table exists ---
-    if not await _table_exists(session, "curriculum_categories"):
+    # --- Ensure curriculum_categories table exists and matches new schema ---
+    cat_cols = await _get_table_columns(session, "curriculum_categories")
+    if cat_cols and "category_code" not in cat_cols:
+        logger.info("[seed] Migrating curriculum_categories table to new schema")
+        await session.execute(text("DROP TABLE IF EXISTS curriculum_categories"))
+        await session.run_sync(
+            lambda sync_session: CurriculumCategory.__table__.create(sync_session.connection(), checkfirst=True)
+        )
+    elif not cat_cols:
         logger.info("[seed] Creating curriculum_categories table")
         await session.run_sync(
             lambda sync_session: CurriculumCategory.__table__.create(sync_session.connection(), checkfirst=True)

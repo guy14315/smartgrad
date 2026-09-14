@@ -26,7 +26,7 @@ class Curriculum(Base):
     students: Mapped[list["Student"]] = relationship(back_populates="curriculum")
     categories: Mapped[list["CurriculumCategory"]] = relationship(
         back_populates="curriculum", cascade="all, delete-orphan",
-        order_by="CurriculumCategory.sort_order",
+        order_by="CurriculumCategory.id",
     )
 
 
@@ -36,11 +36,9 @@ class CurriculumCategory(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     curriculum_id: Mapped[str] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=False)
-    key: Mapped[str] = mapped_column(String(50), nullable=False)        # e.g. "ge", "core_cs"
-    label: Mapped[str] = mapped_column(String(255), nullable=False)     # display name
-    target_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    color: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    category_code: Mapped[str] = mapped_column(String(50), nullable=False)      # e.g. "ge", "core_cs", "major_core"
+    category_name: Mapped[str] = mapped_column(String(255), nullable=False)     # e.g. "ศึกษาทั่วไป (GE)"
+    required_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     curriculum: Mapped["Curriculum"] = relationship(back_populates="categories")
 

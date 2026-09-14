@@ -19,11 +19,12 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from config import SESSION_SECRET_DEFAULT
+from config import get_session_secret
 from dashboard import compute_dashboard, compute_study_plan
 from database import AsyncSessionLocal, engine
 from models import Base
@@ -67,11 +68,9 @@ app = FastAPI(
 )
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SESSION_SECRET", SESSION_SECRET_DEFAULT),
+    secret_key=get_session_secret(),
     https_only=os.environ.get("SESSION_HTTPS_ONLY", "false").lower() == "true",
 )
-
-from fastapi.middleware.cors import CORSMiddleware
 
 allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
 allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
@@ -145,11 +144,12 @@ async def confirm_courses(request: Request):
     try:
         body = await request.json()
         courses = body.get("courses", [])
+        curriculum_id = body.get("curriculum_id")
     except Exception:
         return JSONResponse(status_code=400, content={"error": "ข้อมูลไม่ถูกต้อง"})
 
     async with AsyncSessionLocal() as session:
-        curriculum_dict = await load_curriculum_dict(session)
+        curriculum_dict = await load_curriculum_dict(session, curriculum_id=curriculum_id)
     dashboard = compute_dashboard(courses, curriculum_dict)
     return JSONResponse(content=dashboard)
 
@@ -161,11 +161,12 @@ async def study_plan(request: Request):
         body = await request.json()
         courses = body.get("courses", [])
         plan_type = body.get("plan_type", "normal")
+        curriculum_id = body.get("curriculum_id")
     except Exception:
         return JSONResponse(status_code=400, content={"error": "ข้อมูลไม่ถูกต้อง"})
 
     async with AsyncSessionLocal() as session:
-        curriculum_dict = await load_curriculum_dict(session)
+        curriculum_dict = await load_curriculum_dict(session, curriculum_id=curriculum_id)
     plan = compute_study_plan(courses, curriculum_dict, plan_type)
     return JSONResponse(content=plan)
 

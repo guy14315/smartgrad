@@ -2,6 +2,7 @@
 
 รวม function ที่ใช้ร่วมกันเพื่อลด code duplication:
 - load_curriculum_dict: โหลดหลักสูตรจาก DB
+- load_curriculum_config: โหลด category/credit config จาก DB
 - get_active_transcript: ดึง Transcript ล่าสุดที่ active
 - classify_course: จัดหมวดหมู่รายวิชา
 """
@@ -18,12 +19,15 @@ from sqlalchemy.orm import selectinload
 
 from config import (
     ALTERNATIVE_CODES,
+    CATEGORIES,
     CORE_CS_PREFIX,
     CORE_MATH_CODES,
     GE_PREFIX,
+    MAX_CREDITS_PER_SEMESTER,
     NON_PASSING_GRADES,
+    TOTAL_CREDITS_TARGET,
 )
-from models import Course, Transcript, TranscriptCourse
+from models import Course, Curriculum, CurriculumCategory, Transcript, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +74,60 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Curriculum config loader  (NEW – DB-based category/credit config)
+# ---------------------------------------------------------------------------
+
+def _default_categories_config() -> dict:
+    """Return the hardcoded CS2564 config as a fallback."""
+    return {
+        "categories": dict(CATEGORIES),  # copy
+        "total_credits_target": TOTAL_CREDITS_TARGET,
+        "max_credits_per_semester": MAX_CREDITS_PER_SEMESTER,
+    }
+
+
+async def load_curriculum_config(
+    db: AsyncSession,
+    curriculum_id: str | None = None,
+) -> dict:
+    """Load per-curriculum category definitions and credit targets from DB.
+
+    Returns a dict with keys:
+      - categories: OrderedDict[str, {label, target, color}]
+      - total_credits_target: int
+      - max_credits_per_semester: int
+
+    Falls back to config.py hardcoded values when no DB data is found.
+    """
+    if not curriculum_id:
+        return _default_categories_config()
+
+    result = await db.execute(
+        select(Curriculum)
+        .options(selectinload(Curriculum.categories))
+        .where(Curriculum.curriculum_id == curriculum_id)
+    )
+    curr = result.scalars().first()
+
+    if not curr or not curr.categories:
+        return _default_categories_config()
+
+    categories: dict[str, dict] = {}
+    for cat in curr.categories:          # already ordered by sort_order
+        categories[cat.key] = {
+            "label": cat.label,
+            "target": cat.target_credits,
+            "color": cat.color or "#888888",
+        }
+
+    return {
+        "categories": categories,
+        "total_credits_target": curr.total_credits_target or TOTAL_CREDITS_TARGET,
+        "max_credits_per_semester": curr.max_credits_per_semester or MAX_CREDITS_PER_SEMESTER,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Curriculum loader
 # ---------------------------------------------------------------------------
 
@@ -113,11 +171,19 @@ async def load_curriculum_dict(
                     "url": c.url,
                     "prerequisites": [p.prereq_code for p in c.prerequisites],
                     "prereq_source": c.prereq_source,
+                    "category": c.category,  # DB-based category (may be None)
                 }
                 for c in term_courses
             ],
         })
-    return {"curriculum": curriculum_list}
+
+    # Also load curriculum config if curriculum_id is given
+    config = await load_curriculum_config(db, curriculum_id)
+
+    return {
+        "curriculum": curriculum_list,
+        "curriculum_config": config,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -169,8 +235,18 @@ def transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:
 def classify_course(code: str, curriculum_codes: dict[str, Any]) -> str:
     """Classify a course code into one of the category keys.
 
+    Priority:
+    1. DB-assigned category (stored in curriculum_codes as {'category': ...})
+    2. Fallback: hardcoded if-chain from config.py (for backward compatibility)
+
     Categories: ge, core_math, core_cs, elective, free, alternative.
     """
+    # 1. Check if the curriculum_codes dict carries a DB category for this code
+    info = curriculum_codes.get(code)
+    if isinstance(info, dict) and info.get("category"):
+        return info["category"]
+
+    # 2. Fallback: hardcoded classification (backward compat for CS2564)
     if code.startswith(GE_PREFIX):
         return "ge"
     if code in CORE_MATH_CODES:

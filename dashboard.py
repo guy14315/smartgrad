@@ -16,6 +16,26 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Config helpers – extract categories/targets from curriculum_data or fallback
+# ---------------------------------------------------------------------------
+
+def _get_categories(curriculum_data: dict) -> dict:
+    """Return category dict from curriculum_data config, falling back to config.py."""
+    config = curriculum_data.get("curriculum_config", {})
+    return config.get("categories", CATEGORIES)
+
+
+def _get_total_credits_target(curriculum_data: dict) -> int:
+    config = curriculum_data.get("curriculum_config", {})
+    return config.get("total_credits_target", TOTAL_CREDITS_TARGET)
+
+
+def _get_max_credits_per_semester(curriculum_data: dict) -> int:
+    config = curriculum_data.get("curriculum_config", {})
+    return config.get("max_credits_per_semester", MAX_CREDITS_PER_SEMESTER)
+
+
+# ---------------------------------------------------------------------------
 # Flatten curriculum
 # ---------------------------------------------------------------------------
 
@@ -36,9 +56,21 @@ def _flat_curriculum(curriculum_data: dict) -> list[dict]:
                 "prereqs": course.get("prerequisites", []),
                 "year": term["year"],
                 "semester": term["semester"],
+                "category": course.get("category"),  # DB-assigned category
             })
         term_index += 1
     return flat
+
+
+def _build_curriculum_codes(flat: list[dict]) -> dict[str, Any]:
+    """Build a curriculum_codes mapping that includes DB category info when available."""
+    codes: dict[str, Any] = {}
+    for c in flat:
+        if c.get("category"):
+            codes[c["code"]] = {"year": c.get("year"), "category": c["category"]}
+        else:
+            codes[c["code"]] = c.get("year")
+    return codes
 
 
 def _get_unique_passed_courses(transcript_courses: list[dict]) -> list[dict]:
@@ -71,20 +103,29 @@ def _get_unique_plan_courses(transcript_courses: list[dict]) -> list[dict]:
     return list(unique_courses.values())
 
 
-def _compute_category_breakdown(transcript_courses: list[dict], curriculum_codes: dict[str, Any]) -> tuple[list[dict], dict[str, int]]:
-    category_credits: dict[str, int] = {k: 0 for k in CATEGORIES}
-    category_courses: dict[str, list] = {k: [] for k in CATEGORIES}
+def _compute_category_breakdown(
+    transcript_courses: list[dict],
+    curriculum_codes: dict[str, Any],
+    categories: dict | None = None,
+) -> tuple[list[dict], dict[str, int]]:
+    cats = categories if categories is not None else CATEGORIES
+    category_credits: dict[str, int] = {k: 0 for k in cats}
+    category_courses: dict[str, list] = {k: [] for k in cats}
 
     passed_courses = _get_unique_passed_courses(transcript_courses)
 
     for c in passed_courses:
         cat = classify_course(c["code"], curriculum_codes)
         credit = c.get("credit", 0)
-        
+
+        # If the classified category doesn't exist in this curriculum, default to free
+        if cat not in cats:
+            cat = "free" if "free" in cats else list(cats.keys())[-1]
+
         # Spillover logic: If ge or elective category is full, move to free elective
-        if cat in ["ge", "elective"] and category_credits[cat] >= CATEGORIES[cat]["target"]:
-            cat = "free"
-            
+        if cat in ["ge", "elective"] and category_credits.get(cat, 0) >= cats[cat]["target"]:
+            cat = "free" if "free" in cats else cat
+
         category_credits[cat] += credit
         category_courses[cat].append({
             "code": c["code"],
@@ -94,7 +135,7 @@ def _compute_category_breakdown(transcript_courses: list[dict], curriculum_codes
         })
 
     categories_out = []
-    for key, meta in CATEGORIES.items():
+    for key, meta in cats.items():
         earned = category_credits[key]
         target = meta["target"]
         categories_out.append({
@@ -106,7 +147,7 @@ def _compute_category_breakdown(transcript_courses: list[dict], curriculum_codes
             "percent": round(min(earned / target * 100, 100)) if target else 0,
             "courses": category_courses[key],
         })
-        
+
     return categories_out, category_credits
 
 
@@ -168,8 +209,12 @@ def _compute_in_progress(transcript_courses: list[dict], curriculum: list[dict],
 
 def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> dict:
     curriculum = _flat_curriculum(curriculum_data)
-    curriculum_codes = {c["code"]: c.get("year") for c in curriculum}
+    curriculum_codes = _build_curriculum_codes(curriculum)
     name_by_code = {c["code"]: c.get("name_en") or c.get("name_th", "") for c in curriculum}
+
+    # Get curriculum-specific config
+    categories = _get_categories(curriculum_data)
+    total_credits_target = _get_total_credits_target(curriculum_data)
 
     # separate passed vs current (กำลังเรียน)
     passed_codes: set[str] = set()
@@ -211,8 +256,10 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
             "prereq_status": prereq_status,
         })
 
-    # --- Category breakdown ---
-    categories_out, category_credits = _compute_category_breakdown(transcript_courses, curriculum_codes)
+    # --- Category breakdown (using curriculum-specific categories) ---
+    categories_out, category_credits = _compute_category_breakdown(
+        transcript_courses, curriculum_codes, categories
+    )
 
     # --- Timeline: group passed courses by actual semester from transcript ---
     timeline_list = _compute_timeline(transcript_courses, curriculum_codes)
@@ -224,9 +271,9 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
         "completed_courses": len(unique_passed),
         "total_courses": len(curriculum),
         "completed_credits": completed_credits,
-        "total_credits": TOTAL_CREDITS_TARGET,
+        "total_credits": total_credits_target,
         "remaining_courses_count": len(remaining),
-        "progress_percent": round(min(completed_credits / TOTAL_CREDITS_TARGET * 100, 100)),
+        "progress_percent": round(min(completed_credits / total_credits_target * 100, 100)),
         "remaining_list": remaining_list,
         "categories": categories_out,
         "timeline": timeline_list,
@@ -240,15 +287,19 @@ def compute_dashboard(transcript_courses: list[dict], curriculum_data: dict) -> 
 
 def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, plan_type: str = "normal") -> dict:
     """Compute a semester-by-semester study plan for remaining semesters.
-    
+
     Args:
         transcript_courses: Parsed courses from transcript (same as compute_dashboard)
         curriculum_data: Curriculum dict loaded from DB
         plan_type: 'normal' (ปัญหาพิเศษ) or 'coop' (สหกิจศึกษา)
-    
+
     Returns:
         Dict with plan_terms, summary stats, warnings, and suggestions.
     """
+    # Get curriculum-specific config
+    categories = _get_categories(curriculum_data)
+    max_credits = _get_max_credits_per_semester(curriculum_data)
+
     current_year_num = 1
     current_sem_num = 1
 
@@ -284,9 +335,10 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
                 "prereqs": course.get("prerequisites", []),
                 "year": term["year"],
                 "semester": term["semester"],
+                "category": course.get("category"),
             })
 
-    curriculum_codes = {c["code"]: c.get("year") for c in flat}
+    curriculum_codes = _build_curriculum_codes(flat)
 
     # --- passed / current sets ---
     passed_codes: set[str] = set()
@@ -300,24 +352,26 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
             passed_codes.add(c["code"])
 
     # --- category credits earned so far (including currently enrolled courses) ---
-    cat_earned: dict[str, int] = {k: 0 for k in CATEGORIES}
+    cat_earned: dict[str, int] = {k: 0 for k in categories}
     unique_courses_for_plan = _get_unique_plan_courses(transcript_courses)
     for c in unique_courses_for_plan:
         cat = classify_course(c["code"], curriculum_codes)
-        
-        if cat in ["ge", "elective"] and cat_earned[cat] >= CATEGORIES[cat]["target"]:
-            cat = "free"
-            
+        if cat not in categories:
+            cat = "free" if "free" in categories else list(categories.keys())[-1]
+
+        if cat in ["ge", "elective"] and cat_earned.get(cat, 0) >= categories[cat]["target"]:
+            cat = "free" if "free" in categories else cat
+
         cat_earned[cat] += c.get("credit", 0)
 
-    remaining_elective = max(0, CATEGORIES["elective"]["target"] - cat_earned["elective"])
-    remaining_free = max(0, CATEGORIES["free"]["target"] - cat_earned["free"])
-    remaining_ge = max(0, CATEGORIES["ge"]["target"] - cat_earned["ge"])
+    remaining_elective = max(0, categories.get("elective", {}).get("target", 0) - cat_earned.get("elective", 0))
+    remaining_free = max(0, categories.get("free", {}).get("target", 0) - cat_earned.get("free", 0))
+    remaining_ge = max(0, categories.get("ge", {}).get("target", 0) - cat_earned.get("ge", 0))
 
     # --- remaining core courses ---
     remaining_core = [
         c for c in flat
-        if c["code"] not in passed_codes 
+        if c["code"] not in passed_codes
         and c["code"] not in current_codes
         and c.get("year") is not None
         and c.get("semester") is not None
@@ -357,7 +411,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
     if len(current_codes) > 0:
         curr_y = current_year_num
         curr_s = current_sem_num
-        
+
         current_term_courses = []
         for c in transcript_courses:
             if c.get("is_current"):
@@ -370,7 +424,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
                     "category": classify_course(c["code"], curriculum_codes),
                     "is_locked": True
                 })
-        
+
         plan_terms.append({
             "year": curr_y,
             "semester": curr_s,
@@ -397,12 +451,12 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
         # sort: prioritize courses from earlier semesters, then by code
         can_take.sort(key=lambda c: (c["year"] or 99, c["semester"] or 99, c["code"]))
 
-        # fit into MAX_CREDITS_PER_SEMESTER
+        # fit into max_credits
         term_courses = []
         credits_used = 0
         overflow = []
         for c in can_take:
-            if credits_used + c["credit"] <= MAX_CREDITS_PER_SEMESTER:
+            if credits_used + c["credit"] <= max_credits:
                 term_courses.append(c)
                 credits_used += c["credit"]
             else:
@@ -414,7 +468,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
 
         remaining_set = still_remaining + overflow
 
-        available_credits = MAX_CREDITS_PER_SEMESTER - credits_used
+        available_credits = max_credits - credits_used
 
         plan_terms.append({
             "year": y,
@@ -433,7 +487,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
             ],
             "core_credits": credits_used,
             "available_credits": available_credits,
-            "max_credits": MAX_CREDITS_PER_SEMESTER,
+            "max_credits": max_credits,
         })
 
     # --- summary & warnings ---

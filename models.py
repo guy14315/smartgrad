@@ -19,9 +19,30 @@ class Curriculum(Base):
     curriculum_id: Mapped[str] = mapped_column(String(50), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_credits_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_credits_per_semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     courses: Mapped[list["Course"]] = relationship(back_populates="curriculum")
     students: Mapped[list["Student"]] = relationship(back_populates="curriculum")
+    categories: Mapped[list["CurriculumCategory"]] = relationship(
+        back_populates="curriculum", cascade="all, delete-orphan",
+        order_by="CurriculumCategory.sort_order",
+    )
+
+
+class CurriculumCategory(Base):
+    """หมวดวิชาของหลักสูตร – เก็บ category definitions ต่อหลักสูตร"""
+    __tablename__ = "curriculum_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    curriculum_id: Mapped[str] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=False)
+    key: Mapped[str] = mapped_column(String(50), nullable=False)        # e.g. "ge", "core_cs"
+    label: Mapped[str] = mapped_column(String(255), nullable=False)     # display name
+    target_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    curriculum: Mapped["Curriculum"] = relationship(back_populates="categories")
 
 
 class Course(Base):
@@ -39,6 +60,7 @@ class Course(Base):
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     plan_type: Mapped[str | None] = mapped_column(String(100), nullable=True)  # None = normal
     prereq_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)    # e.g. "ge", "core_cs", "core_math"
 
     # relationships
     curriculum: Mapped["Curriculum | None"] = relationship(back_populates="courses")

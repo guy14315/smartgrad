@@ -11,12 +11,13 @@ from sqlalchemy.orm import selectinload
 from database import get_db
 from dashboard import compute_dashboard
 from models import (
-    Course,
     Advisor,
+    Course,
+    Curriculum,
+    Prerequisite,
     Student,
     Transcript,
     TranscriptCourse,
-    Prerequisite,
 )
 from parser import parse_transcript
 from config import BUDDHIST_ERA_OFFSET, COURSE_CODE_PATTERN, DEFAULT_CURRICULUM_ID, MAX_UPLOAD_SIZE_BYTES, NON_PASSING_GRADES, VALID_GRADES_PATTERN
@@ -125,6 +126,7 @@ async def upload_transcript(
     student_id: str,
     file: UploadFile = File(...),
     student_name: str = Form(""),
+    curriculum_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     """อัปโหลดได้โดยไม่ต้องมีบัญชีนักศึกษา และเลือกอาจารย์จากปีในรหัสนักศึกษา"""
@@ -139,6 +141,17 @@ async def upload_transcript(
             select(Advisor).where(Advisor.cohort_year == admission_year)
         )
         advisor = advisor_result.scalars().first()
+
+        # Resolve curriculum: user-supplied > latest curriculum with year <= admission_year > default
+        resolved_curriculum_id = curriculum_id
+        if not resolved_curriculum_id:
+            curr_res = await db.execute(
+                select(Curriculum)
+                .where(Curriculum.year <= admission_year)
+                .order_by(Curriculum.year.desc())
+            )
+            matched_curr = curr_res.scalars().first()
+            resolved_curriculum_id = matched_curr.curriculum_id if matched_curr else DEFAULT_CURRICULUM_ID
         
         student = Student(
             student_id=student_id,
@@ -146,10 +159,12 @@ async def upload_transcript(
             email=f"{student_id}@kmitl.ac.th",
             admission_year=admission_year,
             advisor_id=advisor.advisor_id if advisor else None,
-            curriculum_id=DEFAULT_CURRICULUM_ID,
+            curriculum_id=resolved_curriculum_id,
         )
         db.add(student)
         await db.flush()
+    elif curriculum_id and student.curriculum_id != curriculum_id:
+        student.curriculum_id = curriculum_id
 
     if file.content_type not in ("application/pdf", "application/octet-stream"):
         raise HTTPException(status_code=400, detail="กรุณาอัปโหลดไฟล์ .pdf เท่านั้น")
@@ -278,7 +293,7 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
     - กรองเฉพาะวิชาที่ Prerequisite ครบแล้ว
     - เรียงตามลำดับ year/semester ของหลักสูตร
     """
-    await _get_student_or_404(student_id, db)
+    student = await _get_student_or_404(student_id, db)
     transcript = await get_active_transcript(student_id, db)
     if not transcript:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
@@ -289,11 +304,14 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
         if tc.grade and tc.grade.upper() not in NON_PASSING_GRADES
     }
 
-    result = await db.execute(
+    stmt = (
         select(Course)
         .options(selectinload(Course.prerequisites))
         .order_by(Course.year, Course.semester, Course.course_code)
     )
+    if student.curriculum_id:
+        stmt = stmt.where(Course.curriculum_id == student.curriculum_id)
+    result = await db.execute(stmt)
     all_courses = result.scalars().all()
 
     recommendations = []

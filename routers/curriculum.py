@@ -8,20 +8,73 @@ from sqlalchemy.orm import selectinload
 
 from config import CATEGORIES
 from database import get_db
-from models import Course, Prerequisite
+from models import Course, Curriculum, CurriculumCategory, Prerequisite
 from services import classify_course
 
 router = APIRouter(prefix="/curriculum", tags=["Curriculum"])
 
 
 # ---------------------------------------------------------------------------
-# Pydantic schemas (response models)
+# Pydantic schemas
 # ---------------------------------------------------------------------------
 
 class PrereqOut(BaseModel):
     prereq_code: str
 
     model_config = {"from_attributes": True}
+
+
+class CurriculumCategoryIn(BaseModel):
+    key: str
+    label: str
+    target_credits: int
+    color: str | None = None
+    sort_order: int = 0
+
+
+class CurriculumCategoryOut(BaseModel):
+    key: str
+    label: str
+    target_credits: int
+    color: str | None = None
+    sort_order: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class CurriculumCreateIn(BaseModel):
+    curriculum_id: str
+    name: str
+    year: int
+    total_credits_target: int = 135
+    max_credits_per_semester: int = 22
+    categories: list[CurriculumCategoryIn] = []
+
+
+class CurriculumInfoOut(BaseModel):
+    curriculum_id: str
+    name: str
+    year: int
+    total_credits_target: int | None = None
+    max_credits_per_semester: int | None = None
+    categories: list[CurriculumCategoryOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class CourseCreateIn(BaseModel):
+    course_code: str
+    curriculum_id: str
+    course_name_th: str
+    course_name_en: str
+    credit: int
+    credit_str: str | None = None
+    year: int | None = None
+    semester: int | None = None
+    url: str | None = None
+    plan_type: str | None = None
+    category: str | None = None
+    prerequisites: list[str] = []
 
 
 class CourseOut(BaseModel):
@@ -54,7 +107,7 @@ class TermOut(BaseModel):
 
 def _course_to_out(c: Course, curriculum_codes: dict[str, Any] | None = None) -> CourseOut:
     curr_map = curriculum_codes if curriculum_codes is not None else {c.course_code: c.year}
-    cat = classify_course(c.course_code, curr_map)
+    cat = c.category or classify_course(c.course_code, curr_map)
     cat_meta = CATEGORIES.get(cat, {"label": "วิชาเลือกเสรี"})
     return CourseOut(
         course_code=c.course_code,
@@ -76,14 +129,121 @@ def _course_to_out(c: Course, curriculum_codes: dict[str, Any] | None = None) ->
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("", response_model=list[TermOut], summary="ดูหลักสูตรทั้งหมด แยกตาม Year/Semester")
-async def get_curriculum(db: AsyncSession = Depends(get_db)):
-    """ดึงรายวิชาทั้งหมดในหลักสูตรจัดกลุ่มตาม ปี/เทอม"""
+@router.get("/programs", response_model=list[CurriculumInfoOut], summary="รายการหลักสูตรทั้งหมดในระบบ")
+async def list_curriculums(db: AsyncSession = Depends(get_db)):
+    """ดึงรายชื่อหลักสูตรทั้งหมดพร้อมเกณฑ์หน่วยกิตและหมวดวิชา"""
     result = await db.execute(
+        select(Curriculum)
+        .options(selectinload(Curriculum.categories))
+        .order_by(Curriculum.year.desc(), Curriculum.curriculum_id)
+    )
+    return result.scalars().all()
+
+
+@router.get("/programs/{curriculum_id}", response_model=CurriculumInfoOut, summary="รายละเอียดหลักสูตรและเกณฑ์หน่วยกิต")
+async def get_curriculum_info(curriculum_id: str, db: AsyncSession = Depends(get_db)):
+    """ดูข้อมูลและโครงสร้างหมวดวิชาของหลักสูตรเฉพาะ"""
+    result = await db.execute(
+        select(Curriculum)
+        .options(selectinload(Curriculum.categories))
+        .where(Curriculum.curriculum_id == curriculum_id)
+    )
+    curr = result.scalars().first()
+    if not curr:
+        raise HTTPException(status_code=404, detail=f"ไม่พบหลักสูตร {curriculum_id}")
+    return curr
+
+
+@router.post("/programs", response_model=CurriculumInfoOut, status_code=201, summary="สร้างหรือเพิ่มหลักสูตรใหม่")
+async def create_curriculum(body: CurriculumCreateIn, db: AsyncSession = Depends(get_db)):
+    """เพิ่มหลักสูตรใหม่พร้อมโครงสร้างหมวดวิชาและเป้าหมายหน่วยกิต"""
+    existing = await db.get(Curriculum, body.curriculum_id)
+    if existing:
+        raise HTTPException(status_code=409, detail=f"หลักสูตร {body.curriculum_id} มีอยู่ในระบบแล้ว")
+
+    curr = Curriculum(
+        curriculum_id=body.curriculum_id,
+        name=body.name,
+        year=body.year,
+        total_credits_target=body.total_credits_target,
+        max_credits_per_semester=body.max_credits_per_semester,
+    )
+    db.add(curr)
+    await db.flush()
+
+    for cat in body.categories:
+        c_cat = CurriculumCategory(
+            curriculum_id=curr.curriculum_id,
+            key=cat.key,
+            label=cat.label,
+            target_credits=cat.target_credits,
+            color=cat.color,
+            sort_order=cat.sort_order,
+        )
+        db.add(c_cat)
+
+    await db.commit()
+
+    result = await db.execute(
+        select(Curriculum)
+        .options(selectinload(Curriculum.categories))
+        .where(Curriculum.curriculum_id == body.curriculum_id)
+    )
+    return result.scalars().first()
+
+
+@router.post("/courses", response_model=CourseOut, status_code=201, summary="เพิ่มรายวิชาในหลักสูตร")
+async def create_course(body: CourseCreateIn, db: AsyncSession = Depends(get_db)):
+    """เพิ่มรายวิชาใหม่เข้าสู่หลักสูตร"""
+    existing = await db.get(Course, body.course_code)
+    if existing:
+        raise HTTPException(status_code=409, detail=f"รหัสวิชา {body.course_code} มีอยู่ในระบบแล้ว")
+
+    course = Course(
+        course_code=body.course_code,
+        curriculum_id=body.curriculum_id,
+        course_name_th=body.course_name_th,
+        course_name_en=body.course_name_en,
+        credit=body.credit,
+        credit_str=body.credit_str or f"{body.credit}(3-0-6)",
+        year=body.year,
+        semester=body.semester,
+        url=body.url,
+        plan_type=body.plan_type,
+        category=body.category,
+    )
+    db.add(course)
+    await db.flush()
+
+    for prereq in body.prerequisites:
+        db.add(Prerequisite(course_code=body.course_code, prereq_code=prereq))
+
+    await db.commit()
+
+    result = await db.execute(
+        select(Course)
+        .options(selectinload(Course.prerequisites))
+        .where(Course.course_code == body.course_code)
+    )
+    c = result.scalars().first()
+    return _course_to_out(c)
+
+
+@router.get("", response_model=list[TermOut], summary="ดูหลักสูตรทั้งหมด แยกตาม Year/Semester")
+async def get_curriculum(
+    curriculum_id: str | None = Query(None, description="รหัสหลักสูตร เช่น CS2564"),
+    db: AsyncSession = Depends(get_db),
+):
+    """ดึงรายวิชาทั้งหมดในหลักสูตรจัดกลุ่มตาม ปี/เทอม (สามารถกรองตามหลักสูตรได้)"""
+    stmt = (
         select(Course)
         .options(selectinload(Course.prerequisites))
         .order_by(Course.year, Course.semester, Course.course_code)
     )
+    if curriculum_id is not None:
+        stmt = stmt.where(Course.curriculum_id == curriculum_id)
+
+    result = await db.execute(stmt)
     courses = result.scalars().all()
     curriculum_codes = {c.course_code: c.year for c in courses}
 
@@ -101,6 +261,7 @@ async def get_curriculum(db: AsyncSession = Depends(get_db)):
 
 @router.get("/courses", response_model=list[CourseOut], summary="ค้นหาและกรองรายวิชา")
 async def search_courses(
+    curriculum_id: str | None = Query(None, description="รหัสหลักสูตร เช่น CS2564"),
     search: str | None = Query(None, description="ค้นหาชื่อหรือรหัสวิชา"),
     year: int | None = Query(None, description="กรองตามชั้นปี (1-4)"),
     semester: int | None = Query(None, description="กรองตามเทอม (1-2)"),
@@ -110,6 +271,8 @@ async def search_courses(
     """ค้นหา/กรองรายวิชา – รองรับ requirement ค้นหาและจัดเรียงตามประเภทวิชา"""
     stmt = select(Course).options(selectinload(Course.prerequisites))
 
+    if curriculum_id is not None:
+        stmt = stmt.where(Course.curriculum_id == curriculum_id)
     if year is not None:
         stmt = stmt.where(Course.year == year)
     if semester is not None:

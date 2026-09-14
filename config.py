@@ -4,6 +4,7 @@ Single source of truth สำหรับค่า config ทั้งหมด�
 เปลี่ยนค่าที่นี่แทนการแก้ในแต่ละไฟล์
 """
 
+import os
 import re
 
 # ---------------------------------------------------------------------------
@@ -62,4 +63,17 @@ MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 # ---------------------------------------------------------------------------
 DEFAULT_CURRICULUM_ID = "CS2564"
 BUDDHIST_ERA_OFFSET = 2500  # พ.ศ. = ค.ศ. + 543, แต่ระบบ KMITL ใช้ 25xx จากรหัสนักศึกษา 2 หลักแรก
-SESSION_SECRET_DEFAULT = "smartgrad-demo-session-secret"  # ⚠️ Override via SESSION_SECRET env var in production
+_SESSION_SECRET_DEFAULT = "smartgrad-demo-session-secret"  # ใช้เฉพาะ development เท่านั้น
+
+
+def get_session_secret() -> str:
+    """Return session secret, raising in production if not explicitly set."""
+    secret = os.environ.get("SESSION_SECRET")
+    if secret:
+        return secret
+    if os.environ.get("ENV", "").lower() == "production":
+        raise RuntimeError(
+            "SESSION_SECRET environment variable must be set in production. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    return _SESSION_SECRET_DEFAULT

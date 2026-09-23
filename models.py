@@ -54,7 +54,6 @@ class Course(Base):
     semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     plan_type: Mapped[str | None] = mapped_column(String(100), nullable=True)  # None = normal
-    prereq_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     category: Mapped[str | None] = mapped_column(String(50), nullable=True)    # e.g. "ge", "core_cs", "core_math"
 
     # relationships

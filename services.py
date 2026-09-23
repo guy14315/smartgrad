@@ -210,7 +210,6 @@ async def load_curriculum_dict(
                     "credit": c.credit_str or str(c.credit),
                     "url": c.url,
                     "prerequisites": [p.prereq_code for p in c.prerequisites],
-                    "prereq_source": c.prereq_source,
                     "category": c.category,  # DB-based category (may be None)
                 }
                 for c in term_courses

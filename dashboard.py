@@ -516,7 +516,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
     if not can_graduate:
         warnings.append("⚠️ จากแผนปัจจุบัน อาจต้องใช้เวลาเรียนมากกว่า 4 ปี")
         suggestions.append("พิจารณาลงเรียนภาคฤดูร้อน (Summer) เพื่อเพิ่มหน่วยกิต")
-        suggestions.append("ปรึกษาอาจารย์ที่ปรึกษาเพื่อขอลงทะเบียนเกินเพดาน 22 หน่วยกิตต่อเทอม")
+        suggestions.append(f"ปรึกษาอาจารย์ที่ปรึกษาเพื่อขอลงทะเบียนเกินเพดาน {max_credits} หน่วยกิตต่อเทอม")
         suggestions.append("วางแผนลงวิชาเลือกที่หน่วยกิตสูงเพื่อลดจำนวนวิชาที่ต้องลง")
 
     if len(future_sems) == 0:

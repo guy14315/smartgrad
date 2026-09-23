@@ -16,12 +16,11 @@ CREATE TABLE IF NOT EXISTS curriculums (
 );
 
 CREATE TABLE IF NOT EXISTS curriculum_categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     curriculum_id VARCHAR(50) NOT NULL,
-    category_code VARCHAR(50) NOT NULL,
-    category_name VARCHAR(255) NOT NULL,
+    category_name VARCHAR(50) NOT NULL,
     required_credits INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (curriculum_id) REFERENCES curriculums(curriculum_id)
+    PRIMARY KEY (curriculum_id, category_name),
+    FOREIGN KEY (curriculum_id) REFERENCES curriculums(curriculum_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS courses (
@@ -68,30 +67,26 @@ CREATE TABLE IF NOT EXISTS students (
     admission_year INTEGER,
     advisor_id VARCHAR(20),
     curriculum_id VARCHAR(50),
+    transcript_filename VARCHAR(255),
+    last_uploaded_at DATETIME,
     FOREIGN KEY (advisor_id) REFERENCES advisors(advisor_id),
     FOREIGN KEY (curriculum_id) REFERENCES curriculums(curriculum_id)
 );
 
-CREATE TABLE IF NOT EXISTS transcripts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id VARCHAR(20) NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    is_active BOOLEAN DEFAULT 1,
-    FOREIGN KEY (student_id) REFERENCES students(student_id)
-);
-
 CREATE TABLE IF NOT EXISTS transcript_courses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    transcript_id INTEGER NOT NULL,
+    student_id VARCHAR(20) NOT NULL,
     course_code VARCHAR(20) NOT NULL,
     course_name_raw VARCHAR(255) NOT NULL,
     credit INTEGER NOT NULL,
     grade VARCHAR(10),
+    semester INTEGER,
+    academic_year VARCHAR(20),
     is_overridden BOOLEAN DEFAULT 0,
-    FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
     FOREIGN KEY (course_code) REFERENCES courses(course_code)
 );
+
 
 
 
@@ -103,13 +98,13 @@ INSERT OR IGNORE INTO curriculums (curriculum_id, name, year, total_credits_targ
 ('CS2564', 'วิทยาการคอมพิวเตอร์', 2564, 135, 22);
 
 -- Curriculum category definitions for CS2564
-INSERT OR IGNORE INTO curriculum_categories (curriculum_id, category_code, category_name, required_credits) VALUES
-('CS2564', 'ge',          'ศึกษาทั่วไป (GE)',      30),
-('CS2564', 'core_math',   'คณิตศาสตร์/สถิติบังคับ', 18),
-('CS2564', 'core_cs',     'วิชาบังคับ CS',          57),
-('CS2564', 'elective',    'วิชาเลือกเฉพาะสาขา',    18),
-('CS2564', 'free',        'วิชาเลือกเสรี',          6),
-('CS2564', 'alternative', 'การศึกษาทางเลือก',      6);
+INSERT OR IGNORE INTO curriculum_categories (curriculum_id, category_name, required_credits) VALUES
+('CS2564', 'ge',          30),
+('CS2564', 'core_math',   18),
+('CS2564', 'core_cs',     57),
+('CS2564', 'elective',    18),
+('CS2564', 'free',        6),
+('CS2564', 'alternative', 6);
 
 INSERT OR IGNORE INTO courses (course_code, curriculum_id, course_name_th, course_name_en, credit_str, credit, year, semester, plan_type, prereq_source, category) VALUES
 -- Year 1 Semester 1

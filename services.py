@@ -3,7 +3,7 @@
 รวม function ที่ใช้ร่วมกันเพื่อลด code duplication:
 - load_curriculum_dict: โหลดหลักสูตรจาก DB
 - load_curriculum_config: โหลด category/credit config จาก DB
-- get_active_transcript: ดึง Transcript ล่าสุดที่ active
+- get_student_courses: ดึงรายวิชาที่ parse จาก transcript ล่าสุด
 - classify_course: จัดหมวดหมู่รายวิชา
 """
 
@@ -27,7 +27,7 @@ from config import (
     NON_PASSING_GRADES,
     TOTAL_CREDITS_TARGET,
 )
-from models import Course, Curriculum, CurriculumCategory, Transcript, TranscriptCourse
+from models import Course, Curriculum, CurriculumCategory, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,24 @@ DEFAULT_CATEGORY_COLORS: dict[str, str] = {
 }
 
 
+DEFAULT_CATEGORY_LABELS: dict[str, str] = {
+    "ge": "ศึกษาทั่วไป (GE)",
+    "general_education": "ศึกษาทั่วไป (GE)",
+    "core_math": "คณิตศาสตร์/สถิติบังคับ",
+    "math_science": "คณิตศาสตร์และวิทยาศาสตร์",
+    "core_cs": "วิชาบังคับ CS",
+    "major_core": "วิชาบังคับสาขา",
+    "major_required": "วิชาบังคับสาขา",
+    "elective": "วิชาเลือกเฉพาะสาขา",
+    "major_elective": "วิชาเลือกเฉพาะสาขา",
+    "free": "วิชาเลือกเสรี",
+    "free_elective": "วิชาเลือกเสรี",
+    "alternative": "การศึกษาทางเลือก",
+    "alternative_study": "การศึกษาทางเลือก",
+    "special_track": "การศึกษาทางเลือก",
+}
+
+
 def _default_categories_config() -> dict:
     """Return the hardcoded CS2564 config as a fallback."""
     return {
@@ -131,13 +149,13 @@ async def load_curriculum_config(
         return _default_categories_config()
 
     categories: dict[str, dict] = {}
-    for cat in curr.categories:          # ordered by id
-        code = getattr(cat, "category_code", getattr(cat, "key", "other"))
-        name = getattr(cat, "category_name", getattr(cat, "label", code))
+    for cat in curr.categories:
+        code = getattr(cat, "category_name", getattr(cat, "category_code", getattr(cat, "key", "other")))
+        label = DEFAULT_CATEGORY_LABELS.get(code, code)
         target = getattr(cat, "required_credits", getattr(cat, "target_credits", 0))
         color = DEFAULT_CATEGORY_COLORS.get(code, "#888888")
         categories[code] = {
-            "label": name,
+            "label": label,
             "target": target,
             "color": color,
         }
@@ -209,21 +227,19 @@ async def load_curriculum_dict(
 
 
 # ---------------------------------------------------------------------------
-# Transcript helpers
+# Transcript / Student Course helpers
 # ---------------------------------------------------------------------------
 
-async def get_active_transcript(
+async def get_student_courses(
     student_id: str,
     db: AsyncSession,
-) -> Transcript | None:
-    """Return the latest active transcript for a student, with courses eager-loaded."""
+) -> list[TranscriptCourse]:
+    """Return all parsed courses for a student."""
     result = await db.execute(
-        select(Transcript)
-        .options(selectinload(Transcript.courses))
-        .where(Transcript.student_id == student_id, Transcript.is_active == True)
-        .order_by(Transcript.uploaded_at.desc())
+        select(TranscriptCourse).where(TranscriptCourse.student_id == student_id)
     )
-    return result.scalars().first()
+    return list(result.scalars().all())
+
 
 
 def compute_credits(courses: list[TranscriptCourse]) -> tuple[int, int]:
@@ -243,8 +259,11 @@ def transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:
         {
             "code": tc.course_code,
             "name_th": tc.course_name_raw,
+            "name_en": tc.course_name_raw,
             "credit": tc.credit,
             "grade": tc.grade,
+            "semester": getattr(tc, "semester", None),
+            "academic_year": getattr(tc, "academic_year", None),
         }
         for tc in tc_list
     ]

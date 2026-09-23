@@ -1074,24 +1074,120 @@ class TestMultiCurriculum(unittest.TestCase):
             self.assertEqual(term["max_credits"], 18)
 
     def test_curriculum_category_model_and_dynamic_color(self):
-        """Test lean CurriculumCategory model: category_code, category_name, required_credits."""
+        """Test lean CurriculumCategory model: composite PK (curriculum_id, category_name), required_credits."""
         from models import CurriculumCategory
-        from services import DEFAULT_CATEGORY_COLORS
+        from services import DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_LABELS
 
         cat = CurriculumCategory(
             curriculum_id="CS2564",
-            category_code="major_core",
-            category_name="วิชาเฉพาะบังคับ",
+            category_name="major_core",
             required_credits=57,
         )
-        self.assertEqual(cat.category_code, "major_core")
-        self.assertEqual(cat.category_name, "วิชาเฉพาะบังคับ")
+        self.assertEqual(cat.curriculum_id, "CS2564")
+        self.assertEqual(cat.category_name, "major_core")
         self.assertEqual(cat.required_credits, 57)
-        # Check that color is resolved in code via DEFAULT_CATEGORY_COLORS
+        # Check that color and label are resolved dynamically in code
         self.assertEqual(DEFAULT_CATEGORY_COLORS.get("major_core"), "#10b981")
         self.assertEqual(DEFAULT_CATEGORY_COLORS.get("general_education"), "#6366f1")
         self.assertEqual(DEFAULT_CATEGORY_COLORS.get("non_existent", "#888888"), "#888888")
+        self.assertEqual(DEFAULT_CATEGORY_LABELS.get("major_core"), "วิชาบังคับสาขา")
+        self.assertEqual(DEFAULT_CATEGORY_LABELS.get("ge"), "ศึกษาทั่วไป (GE)")
+        self.assertEqual(DEFAULT_CATEGORY_LABELS.get("non_existent", "non_existent"), "non_existent")
+
+
+class TestStudentTranscriptSnapshot(unittest.TestCase):
+    """Test suite for the new snapshot-only transcript architecture (transcripts table removed)."""
+
+    def test_student_and_transcript_course_models(self):
+        """Test Student and TranscriptCourse models with direct student_id linking."""
+        from datetime import datetime
+        from models import Student, TranscriptCourse
+        from services import compute_credits, transcript_courses_to_list
+
+        now = datetime.now()
+        student = Student(
+            student_id="64050001",
+            name="สมชาย สายโค้ด",
+            email="64050001@kmitl.ac.th",
+            admission_year=2564,
+            curriculum_id="CS2564",
+            transcript_filename="transcript_64050001.pdf",
+            last_uploaded_at=now,
+        )
+
+        self.assertEqual(student.student_id, "64050001")
+        self.assertEqual(student.transcript_filename, "transcript_64050001.pdf")
+        self.assertEqual(student.last_uploaded_at, now)
+
+        # Create TranscriptCourse linked directly to student_id
+        course1 = TranscriptCourse(
+            id=1,
+            student_id=student.student_id,
+            course_code="05506001",
+            course_name_raw="PROG FUND",
+            credit=3,
+            grade="A",
+            semester=1,
+            academic_year="2024-2025",
+            is_overridden=False,
+        )
+        course2 = TranscriptCourse(
+            id=2,
+            student_id=student.student_id,
+            course_code="05506002",
+            course_name_raw="DATA STRUCT",
+            credit=3,
+            grade="B+",
+            semester=2,
+            academic_year="2024-2025",
+            is_overridden=False,
+        )
+        course3 = TranscriptCourse(
+            id=3,
+            student_id=student.student_id,
+            course_code="90641001",
+            course_name_raw="ENGLISH 1",
+            credit=3,
+            grade="W",
+            semester=1,
+            academic_year="2024-2025",
+            is_overridden=False,
+        )
+
+        courses = [course1, course2, course3]
+        passed_credits, total_credits = compute_credits(courses)
+        self.assertEqual(passed_credits, 6)
+        self.assertEqual(total_credits, 9)
+
+        as_dicts = transcript_courses_to_list(courses)
+        self.assertEqual(len(as_dicts), 3)
+        self.assertEqual(as_dicts[0]["code"], "05506001")
+        self.assertEqual(as_dicts[0]["name_th"], "PROG FUND")
+        self.assertEqual(as_dicts[0]["semester"], 1)
+        self.assertEqual(as_dicts[0]["academic_year"], "2024-2025")
+        self.assertEqual(as_dicts[2]["grade"], "W")
+
+    def test_student_out_schema(self):
+        """Test StudentOut schema includes transcript_filename and last_uploaded_at."""
+        from datetime import datetime
+        from routers.students import StudentOut
+
+        now = datetime.now()
+        data = {
+            "student_id": "64050001",
+            "name": "สมชาย สายโค้ด",
+            "email": "64050001@kmitl.ac.th",
+            "admission_year": 2564,
+            "advisor_id": "ADVISOR001",
+            "curriculum_id": "CS2564",
+            "transcript_filename": "transcript.pdf",
+            "last_uploaded_at": now,
+        }
+        out = StudentOut.model_validate(data)
+        self.assertEqual(out.transcript_filename, "transcript.pdf")
+        self.assertEqual(out.last_uploaded_at, now)
 
 
 if __name__ == "__main__":
     unittest.main()
+

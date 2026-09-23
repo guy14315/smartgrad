@@ -1592,7 +1592,10 @@
       const res = await fetch('/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courses: parsedCourses }),
+        body: JSON.stringify({
+          courses: parsedCourses,
+          curriculum_id: (parsedStudent && parsedStudent.curriculum_id) ? parsedStudent.curriculum_id : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -1907,7 +1910,11 @@
       const res = await fetch('/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courses: parsedCourses, plan_type: selectedPlanType }),
+        body: JSON.stringify({
+          courses: parsedCourses,
+          plan_type: selectedPlanType,
+          curriculum_id: (parsedStudent && parsedStudent.curriculum_id) ? parsedStudent.curriculum_id : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {

@@ -17,7 +17,7 @@ from config import (
     TOTAL_CREDITS_TARGET,
     MAX_CREDITS_PER_SEMESTER,
 )
-from models import Course, Curriculum, CurriculumCategory
+from models import Course, Curriculum, CurriculumCategory, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +63,38 @@ async def run_migrations(session: AsyncSession) -> None:
             logger.info("[seed] Adding max_credits_per_semester column to curriculums table")
             await session.execute(text("ALTER TABLE curriculums ADD COLUMN max_credits_per_semester INTEGER"))
 
-    # --- Ensure curriculum_categories table exists and matches new schema ---
+    # --- Migrate students table: add transcript metadata columns if missing ---
+    student_cols = await _get_table_columns(session, "students")
+    if student_cols:
+        if "transcript_filename" not in student_cols:
+            logger.info("[seed] Adding transcript_filename column to students table")
+            await session.execute(text("ALTER TABLE students ADD COLUMN transcript_filename VARCHAR(255)"))
+        if "last_uploaded_at" not in student_cols:
+            logger.info("[seed] Adding last_uploaded_at column to students table")
+            await session.execute(text("ALTER TABLE students ADD COLUMN last_uploaded_at DATETIME"))
+
+    # --- Migrate transcript_courses table: recreate if using old transcript_id schema or add columns ---
+    tc_cols = await _get_table_columns(session, "transcript_courses")
+    if tc_cols and ("transcript_id" in tc_cols or "student_id" not in tc_cols):
+        logger.info("[seed] Migrating transcript_courses table to student_id schema")
+        await session.execute(text("DROP TABLE IF EXISTS transcript_courses"))
+        await session.execute(text("DROP TABLE IF EXISTS transcripts"))
+        await session.run_sync(
+            lambda sync_session: TranscriptCourse.__table__.create(sync_session.connection(), checkfirst=True)
+        )
+    elif tc_cols:
+        if "semester" not in tc_cols:
+            logger.info("[seed] Adding semester column to transcript_courses table")
+            await session.execute(text("ALTER TABLE transcript_courses ADD COLUMN semester INTEGER"))
+        if "academic_year" not in tc_cols:
+            logger.info("[seed] Adding academic_year column to transcript_courses table")
+            await session.execute(text("ALTER TABLE transcript_courses ADD COLUMN academic_year VARCHAR(20)"))
+
+
+    # --- Ensure curriculum_categories table exists and matches new lean schema ---
     cat_cols = await _get_table_columns(session, "curriculum_categories")
-    if cat_cols and "category_code" not in cat_cols:
-        logger.info("[seed] Migrating curriculum_categories table to new schema")
+    if cat_cols and ("category_code" in cat_cols or "id" in cat_cols or "category_name" not in cat_cols):
+        logger.info("[seed] Migrating curriculum_categories table to category_name schema")
         await session.execute(text("DROP TABLE IF EXISTS curriculum_categories"))
         await session.run_sync(
             lambda sync_session: CurriculumCategory.__table__.create(sync_session.connection(), checkfirst=True)

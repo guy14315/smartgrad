@@ -10,8 +10,8 @@ from sqlalchemy.orm import selectinload
 
 from database import get_db
 from config import NON_PASSING_GRADES
-from services import compute_credits, get_active_transcript, hash_password, verify_password
-from models import Advisor, AdvisorCredential, Student, Transcript
+from services import compute_credits, hash_password, verify_password
+from models import Advisor, AdvisorCredential, Student
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +120,7 @@ async def list_students(advisor_id: str, request: Request, db: AsyncSession = De
     result = await db.execute(
         select(Student)
         .options(
-            selectinload(Student.transcripts).selectinload(Transcript.courses)
+            selectinload(Student.student_courses)
         )
         .where(Student.advisor_id == advisor_id)
     )
@@ -128,19 +128,15 @@ async def list_students(advisor_id: str, request: Request, db: AsyncSession = De
 
     response = []
     for s in students:
-        active = next(
-            (t for t in sorted(s.transcripts, key=lambda t: t.uploaded_at, reverse=True) if t.is_active),
-            None,
-        )
-        if active:
-            passed, _ = compute_credits(active.courses)
+        if s.student_courses or s.last_uploaded_at:
+            passed, _ = compute_credits(s.student_courses)
             response.append({
                 "student_id": s.student_id,
                 "name": s.name,
                 "has_transcript": True,
-                "last_uploaded_at": active.uploaded_at,
+                "last_uploaded_at": s.last_uploaded_at,
                 "passed_credits": passed,
-                "courses_in_transcript": len(active.courses),
+                "courses_in_transcript": len(s.student_courses),
             })
     return {"advisor_id": advisor_id, "students": response, "total": len(response)}
 
@@ -163,24 +159,25 @@ async def get_student_report(
     await _get_advisor_or_404(advisor_id, db)
 
     s_result = await db.execute(
-        select(Student).where(Student.student_id == student_id, Student.advisor_id == advisor_id)
+        select(Student)
+        .options(selectinload(Student.student_courses))
+        .where(Student.student_id == student_id, Student.advisor_id == advisor_id)
     )
     student = s_result.scalars().first()
     if not student:
         raise HTTPException(status_code=404, detail="ไม่พบนักศึกษา หรือนักศึกษาไม่ได้อยู่ในความดูแลของอาจารย์ท่านนี้")
 
-    transcript = await get_active_transcript(student_id, db)
-    if not transcript:
+    if not student.student_courses and not student.last_uploaded_at:
         return {"student_id": student_id, "name": student.name, "message": "ยังไม่มี Transcript"}
 
     passed_courses = [
         {"code": tc.course_code, "name": tc.course_name_raw, "credit": tc.credit, "grade": tc.grade}
-        for tc in transcript.courses
+        for tc in student.student_courses
         if tc.grade and tc.grade.upper() not in NON_PASSING_GRADES
     ]
     failed_courses = [
         {"code": tc.course_code, "name": tc.course_name_raw, "credit": tc.credit, "grade": tc.grade}
-        for tc in transcript.courses
+        for tc in student.student_courses
         if tc.grade and tc.grade.upper() in NON_PASSING_GRADES
     ]
 
@@ -194,7 +191,7 @@ async def get_student_report(
         "failed_or_withdrawn_count": len(failed_courses),
         "passed_courses": passed_courses,
         "failed_or_withdrawn_courses": failed_courses,
-        "transcript_uploaded_at": transcript.uploaded_at,
+        "transcript_uploaded_at": student.last_uploaded_at,
     }
 
 
@@ -210,7 +207,7 @@ async def ready_to_graduate(
     result = await db.execute(
         select(Student)
         .options(
-            selectinload(Student.transcripts).selectinload(Transcript.courses)
+            selectinload(Student.student_courses)
         )
         .where(Student.advisor_id == advisor_id)
     )
@@ -218,13 +215,9 @@ async def ready_to_graduate(
 
     ready = []
     for s in students:
-        active = next(
-            (t for t in sorted(s.transcripts, key=lambda t: t.uploaded_at, reverse=True) if t.is_active),
-            None,
-        )
-        if not active:
+        if not s.student_courses and not s.last_uploaded_at:
             continue
-        passed_credits, _ = compute_credits(active.courses)
+        passed_credits, _ = compute_credits(s.student_courses)
         if passed_credits >= min_credits:
             ready.append({
                 "student_id": s.student_id,
@@ -240,9 +233,6 @@ async def ready_to_graduate(
     }
 
 
-
-
-
 @router.get("/{advisor_id}/summary", summary="รายงานภาพรวมนักศึกษาในความดูแล")
 async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     _require_advisor_login(request, advisor_id)
@@ -250,7 +240,7 @@ async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = 
     result = await db.execute(
         select(Student)
         .options(
-            selectinload(Student.transcripts).selectinload(Transcript.courses)
+            selectinload(Student.student_courses)
         )
         .where(Student.advisor_id == advisor_id)
     )
@@ -262,13 +252,9 @@ async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = 
     total_passed_credits = 0
 
     for s in students:
-        active = next(
-            (t for t in sorted(s.transcripts, key=lambda t: t.uploaded_at, reverse=True) if t.is_active),
-            None,
-        )
-        if active:
+        if s.student_courses or s.last_uploaded_at:
             with_transcript += 1
-            passed, _ = compute_credits(active.courses)
+            passed, _ = compute_credits(s.student_courses)
             total_passed_credits += passed
         else:
             without_transcript += 1
@@ -280,3 +266,4 @@ async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = 
         "students_without_transcript": without_transcript,
         "average_passed_credits": round(total_passed_credits / with_transcript, 1) if with_transcript else 0,
     }
+

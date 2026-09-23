@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from config import CATEGORIES
 from database import get_db
 from models import Course, Curriculum, CurriculumCategory, Prerequisite
-from services import classify_course
+from services import DEFAULT_CATEGORY_LABELS, classify_course
 
 router = APIRouter(prefix="/curriculum", tags=["Curriculum"])
 
@@ -25,37 +25,44 @@ class PrereqOut(BaseModel):
 
 
 class CurriculumCategoryIn(BaseModel):
-    category_code: str
     category_name: str
     required_credits: int
+    category_code: str | None = None
 
     @model_validator(mode="before")
     @classmethod
     def handle_legacy_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            if "category_code" not in data and "key" in data:
-                data["category_code"] = data["key"]
-            if "category_name" not in data and "label" in data:
-                data["category_name"] = data["label"]
+            if "category_name" not in data:
+                if "category_code" in data:
+                    data["category_name"] = data["category_code"]
+                elif "key" in data:
+                    data["category_name"] = data["key"]
+                elif "label" in data:
+                    data["category_name"] = data["label"]
             if "required_credits" not in data and "target_credits" in data:
                 data["required_credits"] = data["target_credits"]
         return data
 
 
 class CurriculumCategoryOut(BaseModel):
-    category_code: str
     category_name: str
     required_credits: int
 
     @computed_field
     @property
+    def category_code(self) -> str:
+        return self.category_name
+
+    @computed_field
+    @property
     def key(self) -> str:
-        return self.category_code
+        return self.category_name
 
     @computed_field
     @property
     def label(self) -> str:
-        return self.category_name
+        return DEFAULT_CATEGORY_LABELS.get(self.category_name, self.category_name)
 
     @computed_field
     @property
@@ -131,7 +138,7 @@ class TermOut(BaseModel):
 def _course_to_out(c: Course, curriculum_codes: dict[str, Any] | None = None) -> CourseOut:
     curr_map = curriculum_codes if curriculum_codes is not None else {c.course_code: c.year}
     cat = c.category or classify_course(c.course_code, curr_map)
-    cat_meta = CATEGORIES.get(cat, {"label": "วิชาเลือกเสรี"})
+    cat_label = DEFAULT_CATEGORY_LABELS.get(cat, CATEGORIES.get(cat, {}).get("label", cat))
     return CourseOut(
         course_code=c.course_code,
         course_name_th=c.course_name_th,
@@ -143,7 +150,7 @@ def _course_to_out(c: Course, curriculum_codes: dict[str, Any] | None = None) ->
         url=c.url,
         plan_type=c.plan_type,
         category=cat,
-        category_label=cat_meta["label"],
+        category_label=cat_label,
         prerequisites=list(dict.fromkeys(p.prereq_code for p in c.prerequisites)),
     )
 
@@ -197,7 +204,6 @@ async def create_curriculum(body: CurriculumCreateIn, db: AsyncSession = Depends
     for cat in body.categories:
         c_cat = CurriculumCategory(
             curriculum_id=curr.curriculum_id,
-            category_code=cat.category_code,
             category_name=cat.category_name,
             required_credits=cat.required_credits,
         )

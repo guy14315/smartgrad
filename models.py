@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -26,18 +26,15 @@ class Curriculum(Base):
     students: Mapped[list["Student"]] = relationship(back_populates="curriculum")
     categories: Mapped[list["CurriculumCategory"]] = relationship(
         back_populates="curriculum", cascade="all, delete-orphan",
-        order_by="CurriculumCategory.id",
     )
 
 
 class CurriculumCategory(Base):
-    """หมวดวิชาของหลักสูตร – เก็บ category definitions ต่อหลักสูตร"""
+    """หมวดวิชาของหลักสูตร – กำหนดเกณฑ์หน่วยกิตขั้นต่ำต่อหมวดในแต่ละหลักสูตร"""
     __tablename__ = "curriculum_categories"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    curriculum_id: Mapped[str] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=False)
-    category_code: Mapped[str] = mapped_column(String(50), nullable=False)      # e.g. "ge", "core_cs", "major_core"
-    category_name: Mapped[str] = mapped_column(String(255), nullable=False)     # e.g. "ศึกษาทั่วไป (GE)"
+    curriculum_id: Mapped[str] = mapped_column(ForeignKey("curriculums.curriculum_id"), primary_key=True)
+    category_name: Mapped[str] = mapped_column(String(50), primary_key=True)      # e.g. "ge", "core_cs", "major_core"
     required_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     curriculum: Mapped["Curriculum"] = relationship(back_populates="categories")
@@ -115,43 +112,37 @@ class Student(Base):
     admission_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     advisor_id: Mapped[str | None] = mapped_column(ForeignKey("advisors.advisor_id"), nullable=True)
     curriculum_id: Mapped[str | None] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=True)
+    transcript_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     advisor: Mapped["Advisor | None"] = relationship(back_populates="students")
     curriculum: Mapped["Curriculum | None"] = relationship(back_populates="students")
-    transcripts: Mapped[list["Transcript"]] = relationship(back_populates="student", order_by="Transcript.uploaded_at.desc()")
+    student_courses: Mapped[list["TranscriptCourse"]] = relationship(
+        back_populates="student", cascade="all, delete-orphan",
+    )
+
 
 
 # ---------------------------------------------------------------------------
-# Transcripts
+# Student courses (parsed from transcript PDF)
 # ---------------------------------------------------------------------------
-
-class Transcript(Base):
-    """ประวัติการ upload transcript"""
-    __tablename__ = "transcripts"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[str] = mapped_column(ForeignKey("students.student_id"), nullable=False)
-    filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    uploaded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    is_active: Mapped[bool] = mapped_column(default=True)  # latest = True
-
-    student: Mapped["Student"] = relationship(back_populates="transcripts")
-    courses: Mapped[list["TranscriptCourse"]] = relationship(back_populates="transcript", cascade="all, delete-orphan")
-
 
 class TranscriptCourse(Base):
-    """รายวิชาที่ parse จาก transcript"""
+    """รายวิชาที่ parse จาก transcript – ผูกตรงกับนักศึกษา (ไม่เก็บประวัติรอบอัปโหลด)"""
     __tablename__ = "transcript_courses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    transcript_id: Mapped[int] = mapped_column(ForeignKey("transcripts.id"), nullable=False)
+    student_id: Mapped[str] = mapped_column(ForeignKey("students.student_id"), nullable=False)
     course_code: Mapped[str] = mapped_column(ForeignKey("courses.course_code"), nullable=False)
     course_name_raw: Mapped[str] = mapped_column(String(255), nullable=False)  # name as-parsed
     credit: Mapped[int] = mapped_column(Integer, nullable=False)
     grade: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_overridden: Mapped[bool] = mapped_column(default=False)  # แก้ไขโดยนักศึกษา
 
-    transcript: Mapped["Transcript"] = relationship(back_populates="courses")
+    student: Mapped["Student"] = relationship(back_populates="student_courses")
     course_ref: Mapped["Course | None"] = relationship(back_populates="transcript_courses")
+
 
 

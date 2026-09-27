@@ -1204,7 +1204,13 @@
         document.getElementById('parse-btn').disabled = false;
         return;
       }
-      parsedCourses = data.courses;
+      parsedCourses = (data.courses || []).map(c => ({
+        ...c,
+        original_code: (c.code || '').trim(),
+        original_grade: (c.grade || '').trim().toUpperCase(),
+        original_credit: c.credit !== undefined ? Number(c.credit) : 3,
+        is_overridden: Boolean(c.is_overridden),
+      }));
       parsedStudent = data.student;
       if (!parsedStudent || !/^\d{8}$/.test(parsedStudent.student_id || '') || !parsedStudent.name) {
         showUploadError('ไม่พบชื่อหรือรหัสนักศึกษา 8 หลักใน Transcript กรุณาใช้ไฟล์ฉบับที่ออกจากสำนักทะเบียน');
@@ -1244,10 +1250,26 @@
         const creditInp = tr.querySelector('.credit-input');
         const gradeInp = tr.querySelector('.grade-val-input');
 
-        if (codeInp) parsedCourses[idx].code = codeInp.value.trim();
-        if (nameInp) parsedCourses[idx].name_en = nameInp.value.trim();
-        if (creditInp) parsedCourses[idx].credit = parseFloat(creditInp.value.trim()) || 0;
-        if (gradeInp) parsedCourses[idx].grade = gradeInp.value.trim().toUpperCase() || null;
+        const currentCode = codeInp ? codeInp.value.trim() : (parsedCourses[idx].code || '');
+        const currentName = nameInp ? nameInp.value.trim() : (parsedCourses[idx].name_en || '');
+        const currentCredit = creditInp ? (parseFloat(creditInp.value.trim()) || 0) : (parsedCourses[idx].credit || 0);
+        const currentGrade = gradeInp ? (gradeInp.value.trim().toUpperCase() || null) : parsedCourses[idx].grade;
+
+        parsedCourses[idx].code = currentCode;
+        parsedCourses[idx].name_en = currentName;
+        parsedCourses[idx].credit = currentCredit;
+        parsedCourses[idx].grade = currentGrade;
+
+        const origCode = (parsedCourses[idx].original_code || '').trim();
+        const origGrade = (parsedCourses[idx].original_grade || '').trim().toUpperCase() || null;
+        const origCredit = parsedCourses[idx].original_credit !== undefined ? Number(parsedCourses[idx].original_credit) : null;
+
+        const isManuallyAdded = Boolean(parsedCourses[idx].is_manually_added);
+        const codeChanged = origCode ? (currentCode !== origCode) : Boolean(currentCode);
+        const gradeChanged = (currentGrade || '') !== (origGrade || '');
+        const creditChanged = (origCredit !== null) && (currentCredit !== origCredit);
+
+        parsedCourses[idx].is_overridden = isManuallyAdded || codeChanged || gradeChanged || creditChanged;
       }
     });
   }
@@ -1310,6 +1332,9 @@
         const tr = document.createElement('tr');
         tr.className = 'review-row';
         tr.dataset.idx = i;
+        const isOverridden = Boolean(c.is_overridden);
+        const originalGrade = c.original_grade !== undefined ? c.original_grade : (grade || '');
+
         tr.innerHTML = `
           <td>
             <input class="grade-input code-input" type="text" value="${c.code || ''}" placeholder="รหัสวิชา"
@@ -1328,8 +1353,8 @@
           <td style="text-align:center">
             ${isCurrent
               ? '<span style="color:var(--gray-400);font-size:14px">–</span>'
-              : `<input class="grade-input grade-val-input" type="text" value="${grade}"
-                   data-original="${grade}"
+              : `<input class="grade-input grade-val-input ${isOverridden ? 'overridden' : ''}" type="text" value="${grade}"
+                   data-original="${originalGrade}"
                    oninput="onGradeChange(this)"
                    placeholder="–">`
             }
@@ -1362,6 +1387,11 @@
       semester: semester,
       academic_year: academic_year || null,
       is_current: is_current,
+      is_manually_added: true,
+      is_overridden: true,
+      original_code: '',
+      original_grade: is_current ? null : '',
+      original_credit: 3,
     });
     renderReviewTable(parsedCourses);
     const rows = document.querySelectorAll('.review-row');
@@ -1436,8 +1466,7 @@
 
   function onGradeChange(input) {
     const val = input.value.trim().toUpperCase();
-
-    const original = input.dataset.original;
+    const original = (input.dataset.original || '').trim().toUpperCase();
     if (val !== original) {
       input.classList.add('overridden');
     } else {
@@ -1601,6 +1630,7 @@
         body: JSON.stringify({
           courses: parsedCourses,
           curriculum_id: (parsedStudent && parsedStudent.curriculum_id) ? parsedStudent.curriculum_id : null,
+          student_id: (parsedStudent && parsedStudent.student_id) ? parsedStudent.student_id : null,
         }),
       });
       const data = await res.json();

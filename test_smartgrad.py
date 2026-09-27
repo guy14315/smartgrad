@@ -981,6 +981,60 @@ class TestAPIIntegration(unittest.TestCase):
                 self.assertEqual(data["total_credits"], 135)
         self._run_async(_test())
 
+    def test_confirm_persists_courses_and_is_overridden(self):
+        """POST /confirm with student_id persists courses and is_overridden flag to DB."""
+        if not self.has_httpx:
+            self.skipTest("httpx not installed")
+
+        async def _test():
+            async with await self._get_client() as client:
+                student_payload = {
+                    "student_id": "67990001",
+                    "name": "ทดสอบ บันทึก",
+                    "email": "67990001@kmitl.ac.th",
+                    "admission_year": 2567,
+                    "curriculum_id": "CS2564",
+                }
+                r = await client.post("/api/students", json=student_payload)
+                self.assertIn(r.status_code, [201, 409])
+
+                confirm_payload = {
+                    "student_id": "67990001",
+                    "curriculum_id": "CS2564",
+                    "courses": [
+                        {
+                            "code": "05506003",
+                            "name_en": "PROGRAMMING FUNDAMENTALS",
+                            "credit": 3,
+                            "grade": "A",
+                            "semester": 1,
+                            "academic_year": "2024-2025",
+                            "is_overridden": False,
+                        },
+                        {
+                            "code": "05506005",
+                            "name_en": "DATA STRUCTURES AND ALGORITHMS",
+                            "credit": 3,
+                            "grade": "A",
+                            "semester": 2,
+                            "academic_year": "2024-2025",
+                            "is_overridden": True,
+                        },
+                    ],
+                }
+                cr = await client.post("/confirm", json=confirm_payload)
+                self.assertEqual(cr.status_code, 200)
+
+                tr = await client.get("/api/students/67990001/transcript-courses")
+                self.assertEqual(tr.status_code, 200)
+                data = tr.json()
+                courses = {c["code"]: c for c in data["courses"]}
+                self.assertIn("05506003", courses)
+                self.assertIn("05506005", courses)
+                self.assertFalse(courses["05506003"]["is_overridden"])
+                self.assertTrue(courses["05506005"]["is_overridden"])
+        self._run_async(_test())
+
     def test_create_curriculum_and_course_api(self):
         """POST /api/curriculum/programs + POST /api/curriculum/courses → 201."""
         if not self.has_httpx:
@@ -1245,6 +1299,7 @@ class TestStudentTranscriptSnapshot(unittest.TestCase):
         self.assertEqual(as_dicts[0]["semester"], 1)
         self.assertEqual(as_dicts[0]["academic_year"], "2024-2025")
         self.assertEqual(as_dicts[2]["grade"], "W")
+        self.assertFalse(as_dicts[0]["is_overridden"])
 
     def test_student_out_schema(self):
         """Test StudentOut schema includes transcript_filename and last_uploaded_at."""

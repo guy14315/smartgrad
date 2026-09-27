@@ -277,6 +277,7 @@ def transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:
             "grade": tc.grade,
             "semester": getattr(tc, "semester", None),
             "academic_year": getattr(tc, "academic_year", None),
+            "is_overridden": bool(getattr(tc, "is_overridden", False)),
         }
         for tc in tc_list
     ]

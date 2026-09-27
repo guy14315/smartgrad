@@ -24,10 +24,12 @@ from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
+from sqlalchemy import delete
+
 from config import get_session_secret
 from dashboard import compute_dashboard, compute_study_plan
 from database import AsyncSessionLocal, engine
-from models import Base
+from models import Base, Course, Student, TranscriptCourse
 from parser import parse_student_info, parse_transcript
 from routers import advisors, curriculum, students
 from seed import seed_curriculum
@@ -145,11 +147,46 @@ async def confirm_courses(request: Request):
         body = await request.json()
         courses = body.get("courses", [])
         curriculum_id = body.get("curriculum_id")
+        student_id = body.get("student_id")
     except Exception:
         return JSONResponse(status_code=400, content={"error": "ข้อมูลไม่ถูกต้อง"})
 
     async with AsyncSessionLocal() as session:
         curriculum_dict = await load_curriculum_dict(session, curriculum_id=curriculum_id)
+
+        if student_id:
+            student = await session.get(Student, student_id)
+            if student:
+                await session.execute(
+                    delete(TranscriptCourse).where(TranscriptCourse.student_id == student_id)
+                )
+                for c in courses:
+                    code = (c.get("code") or "").strip()
+                    if not code:
+                        continue
+                    course_obj = await session.get(Course, code)
+                    if not course_obj:
+                        course_obj = Course(
+                            course_code=code,
+                            course_name_th=c.get("name_th") or c.get("name_en") or code,
+                            course_name_en=c.get("name_en") or c.get("name_th") or code,
+                            credit=int(c.get("credit") or 0),
+                        )
+                        session.add(course_obj)
+                        await session.flush()
+                    tc = TranscriptCourse(
+                        student_id=student_id,
+                        course_code=code,
+                        course_name_raw=c.get("name_th") or c.get("name_en") or code,
+                        credit=int(c.get("credit") or 0),
+                        grade=c.get("grade") or None,
+                        semester=c.get("semester"),
+                        academic_year=c.get("academic_year"),
+                        is_overridden=bool(c.get("is_overridden", False)),
+                    )
+                    session.add(tc)
+                await session.commit()
+
     dashboard = compute_dashboard(courses, curriculum_dict)
     return JSONResponse(content=dashboard)
 

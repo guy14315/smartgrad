@@ -22,7 +22,12 @@ class Curriculum(Base):
     total_credits_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_credits_per_semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    courses: Mapped[list["Course"]] = relationship(back_populates="curriculum")
+    courses: Mapped[list["Course"]] = relationship(
+        secondary="curriculum_courses", back_populates="curriculums", viewonly=True,
+    )
+    curriculum_courses: Mapped[list["CurriculumCourse"]] = relationship(
+        back_populates="curriculum", cascade="all, delete-orphan",
+    )
     students: Mapped[list["Student"]] = relationship(back_populates="curriculum")
     categories: Mapped[list["CurriculumCategory"]] = relationship(
         back_populates="curriculum", cascade="all, delete-orphan",
@@ -41,38 +46,65 @@ class CurriculumCategory(Base):
 
 
 class Course(Base):
-    """รายวิชาในหลักสูตร – SQL เป็น Source of Truth"""
+    """รายวิชา – ข้อมูลวิชาแท้ๆ (ไม่ขึ้นกับหลักสูตร)"""
     __tablename__ = "courses"
 
     course_code: Mapped[str] = mapped_column(String(20), primary_key=True)
-    curriculum_id: Mapped[str | None] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=True)
     course_name_th: Mapped[str] = mapped_column(String(255), nullable=False)
     course_name_en: Mapped[str] = mapped_column(String(255), nullable=False)
     credit_str: Mapped[str | None] = mapped_column(String(20), nullable=True)   # e.g. "3(2-2-5)"
     credit: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # parsed credit hours
-    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    plan_type: Mapped[str | None] = mapped_column(String(100), nullable=True)  # None = normal
-    category: Mapped[str | None] = mapped_column(String(50), nullable=True)    # e.g. "ge", "core_cs", "core_math"
 
     # relationships
-    curriculum: Mapped["Curriculum | None"] = relationship(back_populates="courses")
+    curriculums: Mapped[list["Curriculum"]] = relationship(
+        secondary="curriculum_courses", back_populates="courses", viewonly=True,
+    )
+    curriculum_courses: Mapped[list["CurriculumCourse"]] = relationship(
+        back_populates="course", cascade="all, delete-orphan",
+    )
     prerequisites: Mapped[list["Prerequisite"]] = relationship(
         "Prerequisite", foreign_keys="Prerequisite.course_code", back_populates="course", cascade="all, delete-orphan"
     )
     transcript_courses: Mapped[list["TranscriptCourse"]] = relationship(back_populates="course_ref")
 
 
+class CurriculumCourse(Base):
+    """Junction table: วิชาอยู่ในหลักสูตรไหน พร้อมข้อมูลเฉพาะหลักสูตร (M:N)"""
+    __tablename__ = "curriculum_courses"
+
+    curriculum_id: Mapped[str] = mapped_column(
+        ForeignKey("curriculums.curriculum_id", ondelete="CASCADE"), primary_key=True,
+    )
+    course_code: Mapped[str] = mapped_column(
+        ForeignKey("courses.course_code", ondelete="CASCADE"), primary_key=True,
+    )
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    plan_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    curriculum: Mapped["Curriculum"] = relationship(back_populates="curriculum_courses")
+    course: Mapped["Course"] = relationship(back_populates="curriculum_courses")
+
+
 class Prerequisite(Base):
-    """ความสัมพันธ์ prereq: course_code ต้องการ prereq_code ก่อน"""
+    """ความสัมพันธ์ prereq: course_code ต้องการ prereq_code ก่อน (Recursive M:N)"""
     __tablename__ = "prerequisites"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    course_code: Mapped[str] = mapped_column(ForeignKey("courses.course_code"), nullable=False)
-    prereq_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    course_code: Mapped[str] = mapped_column(
+        ForeignKey("courses.course_code", ondelete="CASCADE"), primary_key=True,
+    )
+    prereq_code: Mapped[str] = mapped_column(
+        ForeignKey("courses.course_code", ondelete="CASCADE"), primary_key=True,
+    )
 
-    course: Mapped["Course"] = relationship("Course", foreign_keys=[course_code], back_populates="prerequisites")
+    course: Mapped["Course"] = relationship(
+        "Course", foreign_keys=[course_code], back_populates="prerequisites",
+    )
+    prereq_course: Mapped["Course"] = relationship(
+        "Course", foreign_keys=[prereq_code],
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ from models import (
     Advisor,
     Course,
     Curriculum,
+    CurriculumCourse,
     Prerequisite,
     Student,
     TranscriptCourse,
@@ -287,20 +288,25 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
     }
 
     stmt = (
-        select(Course)
-        .options(selectinload(Course.prerequisites))
-        .order_by(Course.year, Course.semester, Course.course_code)
+        select(CurriculumCourse)
+        .join(Course)
+        .options(
+            selectinload(CurriculumCourse.course).selectinload(Course.prerequisites),
+        )
+        .order_by(CurriculumCourse.year, CurriculumCourse.semester, CurriculumCourse.course_code)
     )
-    if student.curriculum_id:
-        stmt = stmt.where(Course.curriculum_id == student.curriculum_id)
+    curr_id = student.curriculum_id or DEFAULT_CURRICULUM_ID
+    stmt = stmt.where(CurriculumCourse.curriculum_id == curr_id)
+    stmt = stmt.where(CurriculumCourse.year.isnot(None))
     result = await db.execute(stmt)
-    all_courses = result.scalars().all()
+    all_cc = result.scalars().all()
 
     recommendations = []
-    for c in all_courses:
+    for cc in all_cc:
+        c = cc.course
         if c.course_code in passed_codes:
             continue
-        if c.plan_type and "Co-op" in c.plan_type:
+        if cc.plan_type and "Co-op" in cc.plan_type:
             continue
         missing_prereqs = [p.prereq_code for p in c.prerequisites if p.prereq_code not in passed_codes]
         if not missing_prereqs:
@@ -308,8 +314,8 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
                 "course_code": c.course_code,
                 "course_name_th": c.course_name_th,
                 "credit": c.credit,
-                "year": c.year,
-                "semester": c.semester,
+                "year": cc.year,
+                "semester": cc.semester,
                 "prereq_status": "พร้อมลงเรียนได้",
             })
 

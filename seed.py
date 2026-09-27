@@ -17,7 +17,7 @@ from config import (
     TOTAL_CREDITS_TARGET,
     MAX_CREDITS_PER_SEMESTER,
 )
-from models import Course, Curriculum, CurriculumCategory, TranscriptCourse
+from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +47,12 @@ async def run_migrations(session: AsyncSession) -> None:
 
     Uses SQLAlchemy inspect() API instead of raw SQL for cross-database compatibility.
     """
-    # --- Migrate courses table: add 'category' column if missing ---
-    course_cols = await _get_table_columns(session, "courses")
-    if course_cols and "category" not in course_cols:
-        logger.info("[seed] Adding category column to courses table")
-        await session.execute(text("ALTER TABLE courses ADD COLUMN category VARCHAR(50)"))
+    # --- Migrate: ensure curriculum_courses junction table exists ---
+    if not await _table_exists(session, "curriculum_courses"):
+        logger.info("[seed] Creating curriculum_courses junction table")
+        await session.run_sync(
+            lambda sync_session: CurriculumCourse.__table__.create(sync_session.connection(), checkfirst=True)
+        )
 
     # --- Migrate curriculums table: add new columns if missing ---
     curr_cols = await _get_table_columns(session, "curriculums")
@@ -105,57 +106,57 @@ async def run_migrations(session: AsyncSession) -> None:
             lambda sync_session: CurriculumCategory.__table__.create(sync_session.connection(), checkfirst=True)
         )
 
-    # --- Populate NULL categories using ORM update ---
+    # --- Populate NULL categories on curriculum_courses using ORM update ---
     try:
         null_count_result = await session.execute(
-            select(Course).where(Course.category.is_(None))
+            select(CurriculumCourse).where(CurriculumCourse.category.is_(None))
         )
-        null_courses = null_count_result.scalars().all()
-        if null_courses:
-            count = len(null_courses)
-            logger.info(f"[seed] Populating category for {count} courses with NULL category")
+        null_entries = null_count_result.scalars().all()
+        if null_entries:
+            count = len(null_entries)
+            logger.info(f"[seed] Populating category for {count} curriculum_courses with NULL category")
 
             # Core math courses
             await session.execute(
-                update(Course)
-                .where(Course.course_code.in_(CORE_MATH_CODES))
+                update(CurriculumCourse)
+                .where(CurriculumCourse.course_code.in_(CORE_MATH_CODES))
                 .values(category="core_math")
             )
             # Alternative courses
             await session.execute(
-                update(Course)
-                .where(Course.course_code.in_(ALTERNATIVE_CODES))
+                update(CurriculumCourse)
+                .where(CurriculumCourse.course_code.in_(ALTERNATIVE_CODES))
                 .values(category="alternative")
             )
             # GE courses (prefix-based)
             await session.execute(
-                update(Course)
-                .where(Course.course_code.startswith(GE_PREFIX), Course.category.is_(None))
+                update(CurriculumCourse)
+                .where(CurriculumCourse.course_code.startswith(GE_PREFIX), CurriculumCourse.category.is_(None))
                 .values(category="ge")
             )
             # Core CS courses (prefix-based, with year assigned)
             await session.execute(
-                update(Course)
+                update(CurriculumCourse)
                 .where(
-                    Course.course_code.startswith(CORE_CS_PREFIX),
-                    Course.category.is_(None),
-                    Course.year.isnot(None),
+                    CurriculumCourse.course_code.startswith(CORE_CS_PREFIX),
+                    CurriculumCourse.category.is_(None),
+                    CurriculumCourse.year.isnot(None),
                 )
                 .values(category="core_cs")
             )
             # Elective CS courses (prefix-based, no year)
             await session.execute(
-                update(Course)
+                update(CurriculumCourse)
                 .where(
-                    Course.course_code.startswith(CORE_CS_PREFIX),
-                    Course.category.is_(None),
+                    CurriculumCourse.course_code.startswith(CORE_CS_PREFIX),
+                    CurriculumCourse.category.is_(None),
                 )
                 .values(category="elective")
             )
             # Everything else → free elective
             await session.execute(
-                update(Course)
-                .where(Course.category.is_(None))
+                update(CurriculumCourse)
+                .where(CurriculumCourse.category.is_(None))
                 .values(category="free")
             )
 
@@ -181,9 +182,12 @@ async def seed_curriculum(session: AsyncSession) -> None:
     """อ่านไฟล์ init.sql และรันคำสั่ง SQL เพื่อสร้าง Schema และข้อมูลหลักสูตร"""
     await run_migrations(session)
 
-    # ตรวจสอบว่ามีข้อมูลวิชาอยู่แล้วหรือยัง (ใช้ ORM query)
+    # ตรวจสอบว่ามีข้อมูลวิชาและ junction table อยู่แล้วหรือยัง (ใช้ ORM query)
     result = await session.execute(select(Course).limit(1))
     has_curriculum = result.scalars().first() is not None
+
+    result_cc = await session.execute(select(CurriculumCourse).limit(1))
+    has_curriculum_courses = result_cc.scalars().first() is not None
 
     if not INIT_SQL_PATH.exists():
         logger.warning(f"[seed] Warning: {INIT_SQL_PATH} not found.")
@@ -199,15 +203,17 @@ async def seed_curriculum(session: AsyncSession) -> None:
         # ข้ามคำสั่งสร้าง TABLE หาก SQLAlchemy สร้างไปแล้ว
         if statement.upper().startswith("CREATE TABLE"):
             continue
-        # หากมีหลักสูตรแล้ว ให้ seed เฉพาะบัญชีอาจารย์และ curriculum_categories ใน init.sql
+        # หากมีหลักสูตรแล้ว ให้ seed เฉพาะบัญชีอาจารย์, categories, junction table, และ prerequisites
         statement_upper = statement.upper()
         is_always_seed = (
             "INSERT OR IGNORE INTO ADVISORS" in statement_upper
             or "INSERT OR IGNORE INTO ADVISOR_CREDENTIALS" in statement_upper
             or "UPDATE ADVISORS SET COHORT_YEAR" in statement_upper
             or "INSERT OR IGNORE INTO CURRICULUM_CATEGORIES" in statement_upper
+            or "INSERT OR IGNORE INTO CURRICULUM_COURSES" in statement_upper
+            or "INSERT OR IGNORE INTO PREREQUISITES" in statement_upper
         )
-        if has_curriculum and not is_always_seed:
+        if has_curriculum and has_curriculum_courses and not is_always_seed:
             continue
         try:
             await session.execute(text(statement))

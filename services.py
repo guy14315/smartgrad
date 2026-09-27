@@ -26,8 +26,9 @@ from config import (
     MAX_CREDITS_PER_SEMESTER,
     NON_PASSING_GRADES,
     TOTAL_CREDITS_TARGET,
+    DEFAULT_CURRICULUM_ID,
 )
-from models import Course, Curriculum, CurriculumCategory, TranscriptCourse
+from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,14 @@ async def load_curriculum_config(
         return _default_categories_config()
 
     categories: dict[str, dict] = {}
-    for cat in curr.categories:
+    order_keys = list(CATEGORIES.keys())
+    sorted_cats = sorted(
+        curr.categories,
+        key=lambda c: order_keys.index(getattr(c, "category_name", getattr(c, "category_code", getattr(c, "key", "other"))))
+        if getattr(c, "category_name", getattr(c, "category_code", getattr(c, "key", "other"))) in order_keys
+        else 999
+    )
+    for cat in sorted_cats:
         code = getattr(cat, "category_name", getattr(cat, "category_code", getattr(cat, "key", "other")))
         label = DEFAULT_CATEGORY_LABELS.get(code, code)
         target = getattr(cat, "required_credits", getattr(cat, "target_credits", 0))
@@ -180,21 +188,27 @@ async def load_curriculum_dict(
     Optionally filter by curriculum_id.  Used by both HTML routes
     (main.py) and REST API (students router).
     """
-    stmt = select(Course).options(selectinload(Course.prerequisites))
-    if curriculum_id:
-        stmt = stmt.where(Course.curriculum_id == curriculum_id)
-    stmt = stmt.order_by(Course.year, Course.semester)
+    curriculum_id = curriculum_id or DEFAULT_CURRICULUM_ID
+    stmt = (
+        select(CurriculumCourse)
+        .join(Course)
+        .options(
+            selectinload(CurriculumCourse.course).selectinload(Course.prerequisites),
+        )
+        .where(CurriculumCourse.curriculum_id == curriculum_id)
+        .order_by(CurriculumCourse.year, CurriculumCourse.semester)
+    )
 
     result = await db.execute(stmt)
-    courses = result.scalars().all()
+    cc_rows = result.scalars().all()
 
     terms: dict[tuple, list] = {}
-    for c in courses:
-        key = (c.year, c.semester, c.plan_type)
-        terms.setdefault(key, []).append(c)
+    for cc in cc_rows:
+        key = (cc.year, cc.semester, cc.plan_type)
+        terms.setdefault(key, []).append(cc)
 
     curriculum_list = []
-    for (year, semester, plan_type), term_courses in sorted(
+    for (year, semester, plan_type), term_entries in sorted(
         terms.items(),
         key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or ""),
     ):
@@ -204,15 +218,15 @@ async def load_curriculum_dict(
             "plan_type": plan_type or "",
             "courses": [
                 {
-                    "course_code": c.course_code,
-                    "course_name_th": c.course_name_th,
-                    "course_name_en": c.course_name_en,
-                    "credit": c.credit_str or str(c.credit),
-                    "url": c.url,
-                    "prerequisites": [p.prereq_code for p in c.prerequisites],
-                    "category": c.category,  # DB-based category (may be None)
+                    "course_code": cc.course.course_code,
+                    "course_name_th": cc.course.course_name_th,
+                    "course_name_en": cc.course.course_name_en,
+                    "credit": cc.course.credit_str or str(cc.course.credit),
+                    "url": cc.course.url,
+                    "prerequisites": [p.prereq_code for p in cc.course.prerequisites],
+                    "category": cc.category,  # from junction table
                 }
-                for c in term_courses
+                for cc in term_entries
             ],
         })
 

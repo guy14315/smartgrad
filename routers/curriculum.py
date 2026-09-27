@@ -6,9 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config import CATEGORIES
+from config import CATEGORIES, DEFAULT_CURRICULUM_ID
 from database import get_db
-from models import Course, Curriculum, CurriculumCategory, Prerequisite
+from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, Prerequisite
 from services import DEFAULT_CATEGORY_LABELS, classify_course
 
 router = APIRouter(prefix="/curriculum", tags=["Curriculum"])
@@ -135,23 +135,27 @@ class TermOut(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _course_to_out(c: Course, curriculum_codes: dict[str, Any] | None = None) -> CourseOut:
-    curr_map = curriculum_codes if curriculum_codes is not None else {c.course_code: c.year}
-    cat = c.category or classify_course(c.course_code, curr_map)
-    cat_label = DEFAULT_CATEGORY_LABELS.get(cat, CATEGORIES.get(cat, {}).get("label", cat))
+def _course_to_out(
+    c: Course,
+    curriculum_codes: dict[str, Any] | None = None,
+    cc: "CurriculumCourse | None" = None,
+) -> CourseOut:
+    curr_map = curriculum_codes if curriculum_codes is not None else {}
+    category = (cc.category if cc else None) or classify_course(c.course_code, curr_map)
+    cat_label = DEFAULT_CATEGORY_LABELS.get(category, CATEGORIES.get(category, {}).get("label", category))
     return CourseOut(
         course_code=c.course_code,
         course_name_th=c.course_name_th,
         course_name_en=c.course_name_en,
         credit_str=c.credit_str,
         credit=c.credit,
-        year=c.year,
-        semester=c.semester,
+        year=cc.year if cc else None,
+        semester=cc.semester if cc else None,
         url=c.url,
-        plan_type=c.plan_type,
-        category=cat,
+        plan_type=cc.plan_type if cc else None,
+        category=category,
         category_label=cat_label,
-        prerequisites=list(dict.fromkeys(p.prereq_code for p in c.prerequisites)),
+        prerequisites=[p.prereq_code for p in c.prerequisites],
     )
 
 
@@ -222,25 +226,33 @@ async def create_curriculum(body: CurriculumCreateIn, db: AsyncSession = Depends
 @router.post("/courses", response_model=CourseOut, status_code=201, summary="เพิ่มรายวิชาในหลักสูตร")
 async def create_course(body: CourseCreateIn, db: AsyncSession = Depends(get_db)):
     """เพิ่มรายวิชาใหม่เข้าสู่หลักสูตร"""
-    existing = await db.get(Course, body.course_code)
-    if existing:
-        raise HTTPException(status_code=409, detail=f"รหัสวิชา {body.course_code} มีอยู่ในระบบแล้ว")
+    existing_cc = await db.get(CurriculumCourse, (body.curriculum_id, body.course_code))
+    if existing_cc:
+        raise HTTPException(status_code=409, detail=f"รหัสวิชา {body.course_code} มีอยู่ในหลักสูตร {body.curriculum_id} แล้ว")
 
-    course = Course(
-        course_code=body.course_code,
+    course = await db.get(Course, body.course_code)
+    if not course:
+        course = Course(
+            course_code=body.course_code,
+            course_name_th=body.course_name_th,
+            course_name_en=body.course_name_en,
+            credit=body.credit,
+            credit_str=body.credit_str or f"{body.credit}(3-0-6)",
+            url=body.url,
+        )
+        db.add(course)
+        await db.flush()
+
+    # Junction table: link course to curriculum with context
+    cc = CurriculumCourse(
         curriculum_id=body.curriculum_id,
-        course_name_th=body.course_name_th,
-        course_name_en=body.course_name_en,
-        credit=body.credit,
-        credit_str=body.credit_str or f"{body.credit}(3-0-6)",
+        course_code=body.course_code,
         year=body.year,
         semester=body.semester,
-        url=body.url,
         plan_type=body.plan_type,
         category=body.category,
     )
-    db.add(course)
-    await db.flush()
+    db.add(cc)
 
     for prereq in body.prerequisites:
         db.add(Prerequisite(course_code=body.course_code, prereq_code=prereq))
@@ -253,7 +265,7 @@ async def create_course(body: CourseCreateIn, db: AsyncSession = Depends(get_db)
         .where(Course.course_code == body.course_code)
     )
     c = result.scalars().first()
-    return _course_to_out(c)
+    return _course_to_out(c, cc=cc)
 
 
 @router.get("", response_model=list[TermOut], summary="ดูหลักสูตรทั้งหมด แยกตาม Year/Semester")
@@ -262,23 +274,26 @@ async def get_curriculum(
     db: AsyncSession = Depends(get_db),
 ):
     """ดึงรายวิชาทั้งหมดในหลักสูตรจัดกลุ่มตาม ปี/เทอม (สามารถกรองตามหลักสูตรได้)"""
+    curr_id = curriculum_id or DEFAULT_CURRICULUM_ID
     stmt = (
-        select(Course)
-        .options(selectinload(Course.prerequisites))
-        .order_by(Course.year, Course.semester, Course.course_code)
+        select(CurriculumCourse)
+        .join(Course)
+        .options(
+            selectinload(CurriculumCourse.course).selectinload(Course.prerequisites),
+        )
+        .where(CurriculumCourse.curriculum_id == curr_id)
+        .order_by(CurriculumCourse.year, CurriculumCourse.semester, CurriculumCourse.course_code)
     )
-    if curriculum_id is not None:
-        stmt = stmt.where(Course.curriculum_id == curriculum_id)
 
     result = await db.execute(stmt)
-    courses = result.scalars().all()
-    curriculum_codes = {c.course_code: c.year for c in courses}
+    cc_rows = result.scalars().all()
+    curriculum_codes = {cc.course_code: cc.year for cc in cc_rows}
 
     # group into terms
     terms: dict[tuple[int | None, int | None, str | None], list[CourseOut]] = {}
-    for c in courses:
-        key = (c.year, c.semester, c.plan_type)
-        terms.setdefault(key, []).append(_course_to_out(c, curriculum_codes))
+    for cc in cc_rows:
+        key = (cc.year, cc.semester, cc.plan_type)
+        terms.setdefault(key, []).append(_course_to_out(cc.course, curriculum_codes, cc=cc))
 
     return [
         TermOut(year=k[0], semester=k[1], plan_type=k[2], courses=v)
@@ -296,14 +311,20 @@ async def search_courses(
     db: AsyncSession = Depends(get_db),
 ):
     """ค้นหา/กรองรายวิชา – รองรับ requirement ค้นหาและจัดเรียงตามประเภทวิชา"""
-    stmt = select(Course).options(selectinload(Course.prerequisites))
+    curr_id = curriculum_id or DEFAULT_CURRICULUM_ID
+    stmt = (
+        select(CurriculumCourse)
+        .join(Course)
+        .options(
+            selectinload(CurriculumCourse.course).selectinload(Course.prerequisites),
+        )
+        .where(CurriculumCourse.curriculum_id == curr_id)
+    )
 
-    if curriculum_id is not None:
-        stmt = stmt.where(Course.curriculum_id == curriculum_id)
     if year is not None:
-        stmt = stmt.where(Course.year == year)
+        stmt = stmt.where(CurriculumCourse.year == year)
     if semester is not None:
-        stmt = stmt.where(Course.semester == semester)
+        stmt = stmt.where(CurriculumCourse.semester == semester)
     if search:
         term = f"%{search}%"
         stmt = stmt.where(
@@ -313,16 +334,16 @@ async def search_courses(
         )
 
     sort_col = {
-        "code": Course.course_code,
+        "code": CurriculumCourse.course_code,
         "credit": Course.credit,
-        "year": Course.year,
-    }.get(sort, Course.course_code)
+        "year": CurriculumCourse.year,
+    }.get(sort, CurriculumCourse.course_code)
     stmt = stmt.order_by(sort_col)
 
     result = await db.execute(stmt)
-    courses = result.scalars().all()
-    curriculum_codes = {c.course_code: c.year for c in courses}
-    return [_course_to_out(c, curriculum_codes) for c in courses]
+    cc_rows = result.scalars().all()
+    curriculum_codes = {cc.course_code: cc.year for cc in cc_rows}
+    return [_course_to_out(cc.course, curriculum_codes, cc=cc) for cc in cc_rows]
 
 
 @router.get("/courses/{course_code}", response_model=CourseOut, summary="รายละเอียดวิชา + Prerequisite")
@@ -336,4 +357,11 @@ async def get_course(course_code: str, db: AsyncSession = Depends(get_db)):
     course = result.scalars().first()
     if not course:
         raise HTTPException(status_code=404, detail=f"ไม่พบรายวิชา {course_code}")
-    return _course_to_out(course)
+
+    # Try to find junction record for context
+    cc_result = await db.execute(
+        select(CurriculumCourse).where(CurriculumCourse.course_code == course_code).limit(1)
+    )
+    cc = cc_result.scalars().first()
+    return _course_to_out(course, cc=cc)
+

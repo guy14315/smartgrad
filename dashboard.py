@@ -138,6 +138,8 @@ def _compute_category_breakdown(
     for key, meta in cats.items():
         earned = category_credits[key]
         target = meta["target"]
+        courses_in_cat = category_courses[key]
+        courses_in_cat.sort(key=lambda c: (-c.get("credit", 0), c.get("code", "")))
         categories_out.append({
             "key": key,
             "label": meta["label"],
@@ -145,7 +147,7 @@ def _compute_category_breakdown(
             "earned_credits": earned,
             "target_credits": target,
             "percent": round(min(earned / target * 100, 100)) if target else 0,
-            "courses": category_courses[key],
+            "courses": courses_in_cat,
         })
 
     return categories_out, category_credits
@@ -340,6 +342,19 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
 
     curriculum_codes = _build_curriculum_codes(flat)
 
+    # --- name and prereq mappings ---
+    name_by_code: dict[str, str] = {}
+    for term in curriculum_data.get("curriculum", []):
+        for course in term.get("courses", []):
+            code = course.get("course_code") or course.get("code")
+            if code:
+                name_by_code[code] = course.get("course_name_th") or course.get("course_name_en") or code
+    for c in transcript_courses:
+        if c.get("code") and c["code"] not in name_by_code:
+            name_by_code[c["code"]] = c.get("name_th") or c.get("name_en") or c["code"]
+
+    course_prereqs_map = {c["code"]: c.get("prereqs", []) for c in flat}
+
     # --- passed / current sets ---
     passed_codes: set[str] = set()
     current_codes: set[str] = set()
@@ -415,6 +430,16 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
         current_term_courses = []
         for c in transcript_courses:
             if c.get("is_current"):
+                p_list = course_prereqs_map.get(c["code"], [])
+                unpassed = [
+                    {
+                        "code": p,
+                        "name": name_by_code.get(p, p),
+                        "is_current": p in current_codes,
+                    }
+                    for p in p_list
+                    if p not in passed_codes
+                ]
                 current_term_courses.append({
                     "code": c["code"],
                     "name_en": c.get("name_en") or c.get("name_th", ""),
@@ -422,7 +447,9 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
                     "credit": c.get("credit", 0),
                     "is_deferred": False,
                     "category": classify_course(c["code"], curriculum_codes),
-                    "is_locked": True
+                    "is_locked": True,
+                    "prereqs": p_list,
+                    "unpassed_prereqs": unpassed,
                 })
 
         plan_terms.append({
@@ -482,6 +509,16 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
                     "credit": c["credit"],
                     "is_deferred": (c["year"] or 99, c["semester"] or 99) < (y, s),
                     "category": classify_course(c["code"], curriculum_codes),
+                    "prereqs": c.get("prereqs", []),
+                    "unpassed_prereqs": [
+                        {
+                            "code": p,
+                            "name": name_by_code.get(p, p),
+                            "is_current": p in current_codes,
+                        }
+                        for p in c.get("prereqs", [])
+                        if p not in passed_codes
+                    ],
                 }
                 for c in term_courses
             ],
@@ -514,7 +551,7 @@ def compute_study_plan(transcript_courses: list[dict], curriculum_data: dict, pl
         )
 
     if not can_graduate:
-        warnings.append("⚠️ จากแผนปัจจุบัน อาจต้องใช้เวลาเรียนมากกว่า 4 ปี")
+        warnings.append("จากแผนปัจจุบัน อาจต้องใช้เวลาเรียนมากกว่า 4 ปี")
         suggestions.append("พิจารณาลงเรียนภาคฤดูร้อน (Summer) เพื่อเพิ่มหน่วยกิต")
         suggestions.append(f"ปรึกษาอาจารย์ที่ปรึกษาเพื่อขอลงทะเบียนเกินเพดาน {max_credits} หน่วยกิตต่อเทอม")
         suggestions.append("วางแผนลงวิชาเลือกที่หน่วยกิตสูงเพื่อลดจำนวนวิชาที่ต้องลง")

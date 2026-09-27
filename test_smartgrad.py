@@ -328,6 +328,32 @@ class TestDashboard(unittest.TestCase):
         }
         self.assertTrue(required_keys.issubset(result.keys()))
 
+    def test_all_categories_present_in_dashboard(self):
+        """ตรวจสอบว่าทุกหมวดวิชาของหลักสูตรแสดงครบถ้วน."""
+        result = compute_dashboard([], MOCK_CURRICULUM)
+        cat_keys = [c["key"] for c in result["categories"]]
+        for expected in ["ge", "core_math", "core_cs", "elective", "free", "alternative"]:
+            self.assertIn(expected, cat_keys)
+
+    def test_category_courses_sorted_by_credit_descending(self):
+        """วิชาในแต่ละหมวดต้องเรียงลำดับจากหน่วยกิตมากที่สุดไปน้อยที่สุด."""
+        transcript = [
+            _make_tc("90641001", credit=1, grade="A"),   # GE 1 cr
+            _make_tc("90644007", credit=3, grade="S"),   # GE 3 cr
+            _make_tc("90642999", credit=2, grade="S"),   # GE 2 cr
+            _make_tc("05506999", credit=6, grade="A"),   # Elective 6 cr
+            _make_tc("05506998", credit=1, grade="A"),   # Elective 1 cr
+            _make_tc("05506997", credit=3, grade="B+"),  # Elective 3 cr
+        ]
+        result = compute_dashboard(transcript, MOCK_CURRICULUM)
+        ge_cat = next(c for c in result["categories"] if c["key"] == "ge")
+        ge_credits = [c["credit"] for c in ge_cat["courses"]]
+        self.assertEqual(ge_credits, [3, 2, 1])
+
+        elec_cat = next(c for c in result["categories"] if c["key"] == "elective")
+        elec_credits = [c["credit"] for c in elec_cat["courses"]]
+        self.assertEqual(elec_credits, [6, 3, 1])
+
 
 # ==========================================================================
 # 5. Study Plan Tests
@@ -389,6 +415,55 @@ class TestStudyPlan(unittest.TestCase):
                     term["core_credits"], MAX_CREDITS_PER_SEMESTER,
                     f"Term {term['label']} exceeds max credits",
                 )
+
+    def test_plan_unpassed_prerequisites(self):
+        """วิชาที่มี prereq และยังไม่ผ่าน ต้องแสดงใน unpassed_prereqs."""
+        # 05506003 passed with A -> 05506004 has no unpassed prereqs
+        # But 05506006 requires 05506004, which is not passed yet -> has unpassed prereq
+        transcript = [_make_tc("05506003", grade="A", semester=1, year="2024-2025")]
+        result = compute_study_plan(transcript, MOCK_CURRICULUM, "normal")
+        course_map = {}
+        for term in result["plan_terms"]:
+            for c in term.get("core_courses", []):
+                course_map[c["code"]] = c
+
+        self.assertIn("05506004", course_map)
+        self.assertEqual(course_map["05506004"]["unpassed_prereqs"], [])
+
+        self.assertIn("05506006", course_map)
+        self.assertEqual(len(course_map["05506006"]["unpassed_prereqs"]), 1)
+        self.assertEqual(course_map["05506006"]["unpassed_prereqs"][0]["code"], "05506004")
+        self.assertFalse(course_map["05506006"]["unpassed_prereqs"][0]["is_current"])
+
+    def test_plan_current_prerequisite_flag(self):
+        """วิชา prereq ที่กำลังเรียนอยู่ในเทอมปัจจุบัน ต้องมี is_current=True."""
+        transcript = [_make_tc("05506003", grade=None, is_current=True, semester=1, year="2024-2025")]
+        result = compute_study_plan(transcript, MOCK_CURRICULUM, "normal")
+        course_map = {}
+        for term in result["plan_terms"]:
+            for c in term.get("core_courses", []):
+                course_map[c["code"]] = c
+
+        self.assertIn("05506004", course_map)
+        self.assertEqual(len(course_map["05506004"]["unpassed_prereqs"]), 1)
+        self.assertEqual(course_map["05506004"]["unpassed_prereqs"][0]["code"], "05506003")
+        self.assertTrue(course_map["05506004"]["unpassed_prereqs"][0]["is_current"])
+
+    def test_plan_deferred_flag(self):
+        """วิชาบังคับที่ตกค้างจากเทอมก่อนหน้า ต้องมี is_deferred=True."""
+        transcript = [
+            _make_tc("05506005", grade="B", semester=1, year="2024-2025"),
+            _make_tc("05506001", grade="B", semester=2, year="2024-2025"),
+        ]
+        result = compute_study_plan(transcript, MOCK_CURRICULUM, "normal")
+        course_map = {}
+        for term in result["plan_terms"]:
+            for c in term.get("core_courses", []):
+                course_map[c["code"]] = c
+
+        # 05506003 was originally Year 1 Sem 1, now in Year 2 Sem 1 -> deferred
+        self.assertIn("05506003", course_map)
+        self.assertTrue(course_map["05506003"]["is_deferred"])
 
 
 # ==========================================================================
@@ -503,8 +578,9 @@ class TestValidation(unittest.TestCase):
 class TestPrerequisites(unittest.TestCase):
     """Test prerequisite handling and schema."""
 
-    def test_prerequisite_deduplication(self):
-        from models import Course, Prerequisite
+    def test_prerequisite_unique_mapping(self):
+        """Composite PK ป้องกัน duplicate — ORM mapping ต้องไม่มี record ซ้ำ."""
+        from models import Course, CurriculumCourse, Prerequisite
         from routers.curriculum import _course_to_out
 
         course = Course(
@@ -513,16 +589,19 @@ class TestPrerequisites(unittest.TestCase):
             course_name_en="BIG DATA ARCHITECTURE AND ENGINEERING",
             credit=3,
             credit_str="3(3-0-6)",
-            year=3,
-            semester=1,
             prerequisites=[
-                Prerequisite(course_code="05506240", prereq_code="05506012"),
                 Prerequisite(course_code="05506240", prereq_code="05506012"),
             ],
         )
-        out = _course_to_out(course, {"05506240": 3})
+        cc = CurriculumCourse(
+            curriculum_id="CS2564", course_code="05506240",
+            year=3, semester=1, category="elective",
+        )
+        out = _course_to_out(course, {"05506240": 3}, cc=cc)
         self.assertEqual(out.prerequisites, ["05506012"])
         self.assertEqual(len(out.prerequisites), 1)
+        self.assertEqual(out.year, 3)
+        self.assertEqual(out.semester, 1)
 
 
 # ==========================================================================

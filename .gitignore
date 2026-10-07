@@ -18,3 +18,6 @@ wheels/
 
 # Database
 *.db
+
+# Environment variables (Supabase credentials etc.)
+.env

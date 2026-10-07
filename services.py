@@ -2,7 +2,8 @@
 
 รวม function ที่ใช้ร่วมกันเพื่อลด code duplication:
 - load_curriculum_dict: โหลดหลักสูตรจาก DB
-- get_active_transcript: ดึง Transcript ล่าสุดที่ active
+- load_curriculum_config: โหลด category/credit config จาก DB
+- get_student_courses: ดึงรายวิชาที่ parse จาก transcript ล่าสุด
 - classify_course: จัดหมวดหมู่รายวิชา
 """
 
@@ -18,12 +19,16 @@ from sqlalchemy.orm import selectinload
 
 from config import (
     ALTERNATIVE_CODES,
+    CATEGORIES,
     CORE_CS_PREFIX,
     CORE_MATH_CODES,
     GE_PREFIX,
+    MAX_CREDITS_PER_SEMESTER,
     NON_PASSING_GRADES,
+    TOTAL_CREDITS_TARGET,
+    DEFAULT_CURRICULUM_ID,
 )
-from models import Course, Transcript, TranscriptCourse
+from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +75,107 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Curriculum config loader  (NEW – DB-based category/credit config)
+# ---------------------------------------------------------------------------
+
+DEFAULT_CATEGORY_COLORS: dict[str, str] = {
+    "ge": "#6366f1",
+    "general_education": "#6366f1",
+    "core_math": "#0ea5e9",
+    "math_science": "#0ea5e9",
+    "core_cs": "#10b981",
+    "major_core": "#10b981",
+    "major_required": "#10b981",
+    "elective": "#f59e0b",
+    "major_elective": "#f59e0b",
+    "free": "#ec4899",
+    "free_elective": "#ec4899",
+    "alternative": "#8b5cf6",
+    "alternative_study": "#8b5cf6",
+    "special_track": "#8b5cf6",
+}
+
+
+DEFAULT_CATEGORY_LABELS: dict[str, str] = {
+    "ge": "ศึกษาทั่วไป (GE)",
+    "general_education": "ศึกษาทั่วไป (GE)",
+    "core_math": "คณิตศาสตร์/สถิติบังคับ",
+    "math_science": "คณิตศาสตร์และวิทยาศาสตร์",
+    "core_cs": "วิชาบังคับ CS",
+    "major_core": "วิชาบังคับสาขา",
+    "major_required": "วิชาบังคับสาขา",
+    "elective": "วิชาเลือกเฉพาะสาขา",
+    "major_elective": "วิชาเลือกเฉพาะสาขา",
+    "free": "วิชาเลือกเสรี",
+    "free_elective": "วิชาเลือกเสรี",
+    "alternative": "การศึกษาทางเลือก",
+    "alternative_study": "การศึกษาทางเลือก",
+    "special_track": "การศึกษาทางเลือก",
+}
+
+
+def _default_categories_config() -> dict:
+    """Return the hardcoded CS2564 config as a fallback."""
+    return {
+        "categories": dict(CATEGORIES),  # copy
+        "total_credits_target": TOTAL_CREDITS_TARGET,
+        "max_credits_per_semester": MAX_CREDITS_PER_SEMESTER,
+    }
+
+
+async def load_curriculum_config(
+    db: AsyncSession,
+    curriculum_id: str | None = None,
+) -> dict:
+    """Load per-curriculum category definitions and credit targets from DB.
+
+    Returns a dict with keys:
+      - categories: OrderedDict[str, {label, target, color}]
+      - total_credits_target: int
+      - max_credits_per_semester: int
+
+    Falls back to config.py hardcoded values when no DB data is found.
+    """
+    if not curriculum_id:
+        return _default_categories_config()
+
+    result = await db.execute(
+        select(Curriculum)
+        .options(selectinload(Curriculum.categories))
+        .where(Curriculum.curriculum_id == curriculum_id)
+    )
+    curr = result.scalars().first()
+
+    if not curr or not curr.categories:
+        return _default_categories_config()
+
+    categories: dict[str, dict] = {}
+    order_keys = list(CATEGORIES.keys())
+    sorted_cats = sorted(
+        curr.categories,
+        key=lambda c: order_keys.index(getattr(c, "category_name", getattr(c, "category_code", getattr(c, "key", "other"))))
+        if getattr(c, "category_name", getattr(c, "category_code", getattr(c, "key", "other"))) in order_keys
+        else 999
+    )
+    for cat in sorted_cats:
+        code = getattr(cat, "category_name", getattr(cat, "category_code", getattr(cat, "key", "other")))
+        label = DEFAULT_CATEGORY_LABELS.get(code, code)
+        target = getattr(cat, "required_credits", getattr(cat, "target_credits", 0))
+        color = DEFAULT_CATEGORY_COLORS.get(code, "#888888")
+        categories[code] = {
+            "label": label,
+            "target": target,
+            "color": color,
+        }
+
+    return {
+        "categories": categories,
+        "total_credits_target": curr.total_credits_target or TOTAL_CREDITS_TARGET,
+        "max_credits_per_semester": curr.max_credits_per_semester or MAX_CREDITS_PER_SEMESTER,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Curriculum loader
 # ---------------------------------------------------------------------------
 
@@ -82,21 +188,27 @@ async def load_curriculum_dict(
     Optionally filter by curriculum_id.  Used by both HTML routes
     (main.py) and REST API (students router).
     """
-    stmt = select(Course).options(selectinload(Course.prerequisites))
-    if curriculum_id:
-        stmt = stmt.where(Course.curriculum_id == curriculum_id)
-    stmt = stmt.order_by(Course.year, Course.semester)
+    curriculum_id = curriculum_id or DEFAULT_CURRICULUM_ID
+    stmt = (
+        select(CurriculumCourse)
+        .join(Course)
+        .options(
+            selectinload(CurriculumCourse.course).selectinload(Course.prerequisites),
+        )
+        .where(CurriculumCourse.curriculum_id == curriculum_id)
+        .order_by(CurriculumCourse.year, CurriculumCourse.semester)
+    )
 
     result = await db.execute(stmt)
-    courses = result.scalars().all()
+    cc_rows = result.scalars().all()
 
     terms: dict[tuple, list] = {}
-    for c in courses:
-        key = (c.year, c.semester, c.plan_type)
-        terms.setdefault(key, []).append(c)
+    for cc in cc_rows:
+        key = (cc.year, cc.semester, cc.plan_type)
+        terms.setdefault(key, []).append(cc)
 
     curriculum_list = []
-    for (year, semester, plan_type), term_courses in sorted(
+    for (year, semester, plan_type), term_entries in sorted(
         terms.items(),
         key=lambda item: (item[0][0] or 99, item[0][1] or 99, item[0][2] or ""),
     ):
@@ -106,36 +218,41 @@ async def load_curriculum_dict(
             "plan_type": plan_type or "",
             "courses": [
                 {
-                    "course_code": c.course_code,
-                    "course_name_th": c.course_name_th,
-                    "course_name_en": c.course_name_en,
-                    "credit": c.credit_str or str(c.credit),
-                    "url": c.url,
-                    "prerequisites": [p.prereq_code for p in c.prerequisites],
-                    "prereq_source": c.prereq_source,
+                    "course_code": cc.course.course_code,
+                    "course_name_th": cc.course.course_name_th,
+                    "course_name_en": cc.course.course_name_en,
+                    "credit": cc.course.credit_str or str(cc.course.credit),
+                    "url": cc.course.url,
+                    "prerequisites": [p.prereq_code for p in cc.course.prerequisites],
+                    "category": cc.category,  # from junction table
                 }
-                for c in term_courses
+                for cc in term_entries
             ],
         })
-    return {"curriculum": curriculum_list}
+
+    # Also load curriculum config if curriculum_id is given
+    config = await load_curriculum_config(db, curriculum_id)
+
+    return {
+        "curriculum": curriculum_list,
+        "curriculum_config": config,
+    }
 
 
 # ---------------------------------------------------------------------------
-# Transcript helpers
+# Transcript / Student Course helpers
 # ---------------------------------------------------------------------------
 
-async def get_active_transcript(
+async def get_student_courses(
     student_id: str,
     db: AsyncSession,
-) -> Transcript | None:
-    """Return the latest active transcript for a student, with courses eager-loaded."""
+) -> list[TranscriptCourse]:
+    """Return all parsed courses for a student."""
     result = await db.execute(
-        select(Transcript)
-        .options(selectinload(Transcript.courses))
-        .where(Transcript.student_id == student_id, Transcript.is_active == True)
-        .order_by(Transcript.uploaded_at.desc())
+        select(TranscriptCourse).where(TranscriptCourse.student_id == student_id)
     )
-    return result.scalars().first()
+    return list(result.scalars().all())
+
 
 
 def compute_credits(courses: list[TranscriptCourse]) -> tuple[int, int]:
@@ -155,8 +272,13 @@ def transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:
         {
             "code": tc.course_code,
             "name_th": tc.course_name_raw,
+            "name_en": tc.course_name_raw,
             "credit": tc.credit,
             "grade": tc.grade,
+            "semester": getattr(tc, "semester", None),
+            "academic_year": getattr(tc, "academic_year", None),
+            "is_overridden": bool(getattr(tc, "is_overridden", False)),
+            "is_current": not bool(tc.grade and tc.grade.strip()),
         }
         for tc in tc_list
     ]
@@ -169,8 +291,18 @@ def transcript_courses_to_list(tc_list: list[TranscriptCourse]) -> list[dict]:
 def classify_course(code: str, curriculum_codes: dict[str, Any]) -> str:
     """Classify a course code into one of the category keys.
 
+    Priority:
+    1. DB-assigned category (stored in curriculum_codes as {'category': ...})
+    2. Fallback: hardcoded if-chain from config.py (for backward compatibility)
+
     Categories: ge, core_math, core_cs, elective, free, alternative.
     """
+    # 1. Check if the curriculum_codes dict carries a DB category for this code
+    info = curriculum_codes.get(code)
+    if isinstance(info, dict) and info.get("category"):
+        return info["category"]
+
+    # 2. Fallback: hardcoded classification (backward compat for CS2564)
     if code.startswith(GE_PREFIX):
         return "ge"
     if code in CORE_MATH_CODES:

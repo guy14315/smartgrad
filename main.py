@@ -176,3 +176,9 @@ async def study_plan(request: Request):
 app.include_router(curriculum.router, prefix="/api")
 app.include_router(students.router, prefix="/api")
 app.include_router(advisors.router, prefix="/api")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

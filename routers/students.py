@@ -4,23 +4,24 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, field_validator
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database import get_db
 from dashboard import compute_dashboard
 from models import (
-    Course,
     Advisor,
-    Student,
-    Transcript,
-    TranscriptCourse,
+    Course,
+    Curriculum,
+    CurriculumCourse,
     Prerequisite,
+    Student,
+    TranscriptCourse,
 )
 from parser import parse_transcript
-from config import NON_PASSING_GRADES, COURSE_CODE_PATTERN, MAX_UPLOAD_SIZE_BYTES, VALID_GRADES_PATTERN
-from services import get_active_transcript, load_curriculum_dict, transcript_courses_to_list
+from config import BUDDHIST_ERA_OFFSET, COURSE_CODE_PATTERN, DEFAULT_CURRICULUM_ID, MAX_UPLOAD_SIZE_BYTES, NON_PASSING_GRADES, VALID_GRADES_PATTERN
+from services import get_student_courses, load_curriculum_dict, transcript_courses_to_list
 
 import logging
 logger = logging.getLogger(__name__)
@@ -49,17 +50,13 @@ class StudentOut(BaseModel):
     admission_year: int | None
     advisor_id: str | None
     curriculum_id: str | None
+    transcript_filename: str | None = None
+    last_uploaded_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
-class TranscriptHistoryOut(BaseModel):
-    id: int
-    filename: str
-    uploaded_at: datetime
-    is_active: bool
 
-    model_config = {"from_attributes": True}
 
 
 class CourseOverrideIn(BaseModel):
@@ -125,6 +122,7 @@ async def upload_transcript(
     student_id: str,
     file: UploadFile = File(...),
     student_name: str = Form(""),
+    curriculum_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
 ):
     """อัปโหลดได้โดยไม่ต้องมีบัญชีนักศึกษา และเลือกอาจารย์จากปีในรหัสนักศึกษา"""
@@ -134,11 +132,22 @@ async def upload_transcript(
     result = await db.execute(select(Student).where(Student.student_id == student_id))
     student = result.scalars().first()
     if not student:
-        admission_year = 2500 + int(student_id[:2])
+        admission_year = BUDDHIST_ERA_OFFSET + int(student_id[:2])
         advisor_result = await db.execute(
             select(Advisor).where(Advisor.cohort_year == admission_year)
         )
         advisor = advisor_result.scalars().first()
+
+        # Resolve curriculum: user-supplied > latest curriculum with year <= admission_year > default
+        resolved_curriculum_id = curriculum_id
+        if not resolved_curriculum_id:
+            curr_res = await db.execute(
+                select(Curriculum)
+                .where(Curriculum.year <= admission_year)
+                .order_by(Curriculum.year.desc())
+            )
+            matched_curr = curr_res.scalars().first()
+            resolved_curriculum_id = matched_curr.curriculum_id if matched_curr else DEFAULT_CURRICULUM_ID
         
         student = Student(
             student_id=student_id,
@@ -146,10 +155,15 @@ async def upload_transcript(
             email=f"{student_id}@kmitl.ac.th",
             admission_year=admission_year,
             advisor_id=advisor.advisor_id if advisor else None,
-            curriculum_id="CS2564",
+            curriculum_id=resolved_curriculum_id,
         )
         db.add(student)
         await db.flush()
+    elif student:
+        if curriculum_id and student.curriculum_id != curriculum_id:
+            student.curriculum_id = curriculum_id
+        if student_name.strip() and student.name.startswith("นักศึกษา "):
+            student.name = student_name.strip()
 
     if file.content_type not in ("application/pdf", "application/octet-stream"):
         raise HTTPException(status_code=400, detail="กรุณาอัปโหลดไฟล์ .pdf เท่านั้น")
@@ -164,54 +178,53 @@ async def upload_transcript(
     # parse PDF
     parsed_courses = parse_transcript(file.file)
 
-    # deactivate old transcripts
-    old = await db.execute(
-        select(Transcript).where(Transcript.student_id == student_id, Transcript.is_active == True)
-    )
-    for t in old.scalars().all():
-        t.is_active = False
+    # update student transcript upload metadata
+    student.transcript_filename = file.filename or "transcript.pdf"
+    student.last_uploaded_at = datetime.now()
 
-    # create new transcript record
-    transcript = Transcript(
-        student_id=student_id,
-        filename=file.filename or "transcript.pdf",
-        is_active=True,
+    # delete old courses for this student
+    await db.execute(
+        delete(TranscriptCourse).where(TranscriptCourse.student_id == student_id)
     )
-    db.add(transcript)
-    await db.flush()
 
     # save parsed courses
     for pc in parsed_courses:
+        code = (pc.get("code") or "").strip()
+        if not code:
+            continue
+
+        # Ensure course exists in courses table (satisfies FK constraint in PostgreSQL/Supabase)
+        course_obj = await db.get(Course, code)
+        if not course_obj:
+            course_obj = Course(
+                course_code=code,
+                course_name_th=pc.get("name_th") or pc.get("name_en") or code,
+                course_name_en=pc.get("name_en") or pc.get("name_th") or code,
+                credit=int(pc.get("credit") or 0),
+            )
+            db.add(course_obj)
+            await db.flush()
+
         tc = TranscriptCourse(
-            transcript_id=transcript.id,
-            course_code=pc["code"],
+            student_id=student_id,
+            course_code=code,
             # parser returns the English transcript title; accept either key
             # to support manually reviewed/imported course records as well.
-            course_name_raw=pc.get("name_th") or pc.get("name_en") or pc["code"],
-            credit=pc["credit"],
+            course_name_raw=pc.get("name_th") or pc.get("name_en") or code,
+            credit=int(pc.get("credit") or 0),
             grade=pc.get("grade"),
+            semester=pc.get("semester"),
+            academic_year=pc.get("academic_year"),
         )
         db.add(tc)
 
     await db.commit()
     return {
         "message": "อัปโหลด Transcript สำเร็จ",
-        "transcript_id": transcript.id,
         "courses_parsed": len(parsed_courses),
-        "uploaded_at": transcript.uploaded_at,
+        "uploaded_at": student.last_uploaded_at,
         "advisor_id": student.advisor_id,
     }
-
-
-@router.get("/{student_id}/transcripts", response_model=list[TranscriptHistoryOut], summary="ประวัติการอัปโหลด Transcript")
-async def list_transcripts(student_id: str, db: AsyncSession = Depends(get_db)):
-    await _get_student_or_404(student_id, db)
-    result = await db.execute(
-        select(Transcript)
-        .where(Transcript.student_id == student_id)
-        .order_by(Transcript.uploaded_at.desc())
-    )
-    return result.scalars().all()
 
 
 @router.get("/{student_id}/dashboard", summary="ดู Dashboard ความก้าวหน้าการเรียน")
@@ -223,15 +236,12 @@ async def get_dashboard(student_id: str, db: AsyncSession = Depends(get_db)):
     - % ความก้าวหน้า
     - รายวิชาที่เหลือพร้อมสถานะ Prerequisite
     """
-    await _get_student_or_404(student_id, db)
-    transcript = await get_active_transcript(student_id, db)
-    if not transcript:
+    student = await _get_student_or_404(student_id, db)
+    courses = await get_student_courses(student_id, db)
+    if not courses:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript ในระบบ กรุณาอัปโหลดก่อน")
 
-    parsed_courses = transcript_courses_to_list(transcript.courses)
-    
-    # ดึง student มาเพื่อดู curriculum_id
-    student = await _get_student_or_404(student_id, db)
+    parsed_courses = transcript_courses_to_list(courses)
     curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     return compute_dashboard(parsed_courses, curriculum)
 
@@ -239,15 +249,14 @@ async def get_dashboard(student_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/{student_id}/transcript-courses", summary="ดูรายวิชาที่ parse จาก Transcript ล่าสุด")
 async def get_transcript_courses(student_id: str, db: AsyncSession = Depends(get_db)):
     """ดูรายการวิชาที่ระบบ parse ได้ – สามารถตรวจสอบความถูกต้องก่อนประมวลผล"""
-    await _get_student_or_404(student_id, db)
-    transcript = await get_active_transcript(student_id, db)
-    if not transcript:
+    student = await _get_student_or_404(student_id, db)
+    courses = await get_student_courses(student_id, db)
+    if not courses and not student.last_uploaded_at:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
     return {
-        "transcript_id": transcript.id,
-        "filename": transcript.filename,
-        "uploaded_at": transcript.uploaded_at,
-        "courses": transcript_courses_to_list(transcript.courses),
+        "filename": student.transcript_filename or "transcript.pdf",
+        "uploaded_at": student.last_uploaded_at,
+        "courses": transcript_courses_to_list(courses),
     }
 
 
@@ -260,18 +269,20 @@ async def override_course_grade(
 ):
     """แก้ไขเกรดของวิชาที่ระบบ parse ผิด – is_overridden จะถูก set เป็น True"""
     await _get_student_or_404(student_id, db)
-    transcript = await get_active_transcript(student_id, db)
-    if not transcript:
-        raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
+    result = await db.execute(
+        select(TranscriptCourse).where(
+            TranscriptCourse.student_id == student_id,
+            TranscriptCourse.course_code == course_code,
+        )
+    )
+    tc = result.scalars().first()
+    if not tc:
+        raise HTTPException(status_code=404, detail=f"ไม่พบวิชา {course_code} ใน Transcript ล่าสุด")
 
-    for tc in transcript.courses:
-        if tc.course_code == course_code:
-            tc.grade = body.grade
-            tc.is_overridden = True
-            await db.commit()
-            return {"message": f"อัปเดตเกรดวิชา {course_code} เป็น {body.grade} สำเร็จ"}
-
-    raise HTTPException(status_code=404, detail=f"ไม่พบวิชา {course_code} ใน Transcript ล่าสุด")
+    tc.grade = body.grade
+    tc.is_overridden = True
+    await db.commit()
+    return {"message": f"อัปเดตเกรดวิชา {course_code} เป็น {body.grade} สำเร็จ"}
 
 
 @router.get("/{student_id}/plan", summary="แนะนำวิชาสำหรับลงทะเบียนเทอมถัดไป")
@@ -281,29 +292,37 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
     - กรองเฉพาะวิชาที่ Prerequisite ครบแล้ว
     - เรียงตามลำดับ year/semester ของหลักสูตร
     """
-    await _get_student_or_404(student_id, db)
-    transcript = await get_active_transcript(student_id, db)
-    if not transcript:
+    student = await _get_student_or_404(student_id, db)
+    courses = await get_student_courses(student_id, db)
+    if not courses:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
 
     passed_codes = {
         tc.course_code
-        for tc in transcript.courses
+        for tc in courses
         if tc.grade and tc.grade.upper() not in NON_PASSING_GRADES
     }
 
-    result = await db.execute(
-        select(Course)
-        .options(selectinload(Course.prerequisites))
-        .order_by(Course.year, Course.semester, Course.course_code)
+    stmt = (
+        select(CurriculumCourse)
+        .join(Course)
+        .options(
+            selectinload(CurriculumCourse.course).selectinload(Course.prerequisites),
+        )
+        .order_by(CurriculumCourse.year, CurriculumCourse.semester, CurriculumCourse.course_code)
     )
-    all_courses = result.scalars().all()
+    curr_id = student.curriculum_id or DEFAULT_CURRICULUM_ID
+    stmt = stmt.where(CurriculumCourse.curriculum_id == curr_id)
+    stmt = stmt.where(CurriculumCourse.year.isnot(None))
+    result = await db.execute(stmt)
+    all_cc = result.scalars().all()
 
     recommendations = []
-    for c in all_courses:
+    for cc in all_cc:
+        c = cc.course
         if c.course_code in passed_codes:
             continue
-        if c.plan_type and "Co-op" in c.plan_type:
+        if cc.plan_type and "Co-op" in cc.plan_type:
             continue
         missing_prereqs = [p.prereq_code for p in c.prerequisites if p.prereq_code not in passed_codes]
         if not missing_prereqs:
@@ -311,8 +330,8 @@ async def get_next_semester_plan(student_id: str, db: AsyncSession = Depends(get
                 "course_code": c.course_code,
                 "course_name_th": c.course_name_th,
                 "credit": c.credit,
-                "year": c.year,
-                "semester": c.semester,
+                "year": cc.year,
+                "semester": cc.semester,
                 "prereq_status": "พร้อมลงเรียนได้",
             })
 
@@ -329,16 +348,16 @@ async def simulate_progress(
     จำลองสถานะความก้าวหน้าหากวิชาที่กำลังเรียนถูกนับเป็น 'ผ่าน'
     ช่วย requirement: นักศึกษาต้องสามารถจำลองสถานะความก้าวหน้าโดยนับรวมรายวิชาที่กำลังศึกษา
     """
-    await _get_student_or_404(student_id, db)
+    student = await _get_student_or_404(student_id, db)
     for code in body.current_course_codes:
         if not COURSE_CODE_PATTERN.match(code):
             raise HTTPException(status_code=400, detail=f"รหัสวิชาไม่ถูกต้อง: {code}")
 
-    transcript = await get_active_transcript(student_id, db)
-    if not transcript:
+    courses = await get_student_courses(student_id, db)
+    if not courses:
         raise HTTPException(status_code=404, detail="ยังไม่มี Transcript")
 
-    parsed_courses = transcript_courses_to_list(transcript.courses)
+    parsed_courses = transcript_courses_to_list(courses)
 
     # inject simulated courses with grade "S" (passing)
     existing_codes = {c["code"] for c in parsed_courses}
@@ -355,8 +374,6 @@ async def simulate_progress(
                 "credit": c.credit,
                 "grade": "S",  # simulated pass
             })
-
-    student = await _get_student_or_404(student_id, db)
     curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
     dashboard = compute_dashboard(parsed_courses, curriculum)
     dashboard["simulated"] = True
@@ -383,7 +400,15 @@ async def withdrawal_impact(
     )
     prereq_entries = result.scalars().all()
 
-    impacted_codes = [p.course_code for p in prereq_entries]
+    # Exclude courses the student has already passed
+    student_courses = await get_student_courses(student_id, db)
+    passed_codes = {
+        c.course_code
+        for c in student_courses
+        if c.grade and c.grade.upper() not in NON_PASSING_GRADES
+    }
+
+    impacted_codes = [p.course_code for p in prereq_entries if p.course_code not in passed_codes]
     impacted_courses = []
     if impacted_codes:
         res2 = await db.execute(

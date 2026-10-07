@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "8000:8080"
+    env_file:
+      - .env
     volumes:
       - ./main.py:/app/main.py
       - ./parser.py:/app/parser.py

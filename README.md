@@ -126,10 +126,11 @@ smartgrad/
 │   │   ├── students.py       # API นักศึกษา: โปรไฟล์, อัปโหลด Transcript, Dashboard, แผนการเรียน, จำลอง/ผลกระทบการถอน
 │   │   ├── curriculum.py     # API หลักสูตร: รายการหลักสูตร, ค้นหารายวิชา, Prerequisite
 │   │   └── advisors.py       # API อาจารย์ที่ปรึกษา: เข้า/ออกจากระบบ, รายชื่อนักศึกษา, รายงาน
-│   └── templates/            # หน้าเว็บ (Jinja2 + HTML/JS/CSS)
-│       ├── index.html        # หน้านักศึกษา: อัปโหลด, ตรวจสอบ/แก้ไข, Dashboard, แผนการเรียน, Export PDF
-│       ├── search.html       # หน้าค้นหารายวิชา
-│       └── advisor.html      # หน้าอาจารย์ที่ปรึกษา
+│   ├── templates/            # หน้าเว็บ (Jinja2 + HTML/JS)
+│   │   ├── index.html        # หน้านักศึกษา: อัปโหลด, ตรวจสอบ/แก้ไข, Dashboard, แผนการเรียน, Export PDF
+│   │   ├── search.html       # หน้าค้นหารายวิชา
+│   │   └── advisor.html      # หน้าอาจารย์ที่ปรึกษา
+│   └── static/css/           # สไตล์ของแต่ละหน้า (index.css, search.css, advisor.css) เสิร์ฟที่ /static
 ├── tests/
 │   └── test_smartgrad.py     # Unit test และ Integration test ทั้งหมด (78 รายการ)
 ├── requirements.txt          # แพ็กเกจ Python ที่ต้องติดตั้ง (ระบุเวอร์ชันตายตัว)

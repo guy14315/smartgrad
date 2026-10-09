@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config import CATEGORIES, DEFAULT_CURRICULUM_ID
-from database import get_db
-from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, Prerequisite
-from services import DEFAULT_CATEGORY_LABELS, classify_course
+from app.config import CATEGORIES, DEFAULT_CURRICULUM_ID
+from app.database import get_db
+from app.models import Course, Curriculum, CurriculumCategory, CurriculumCourse, Prerequisite
+from app.services import DEFAULT_CATEGORY_LABELS, classify_course
 
 router = APIRouter(prefix="/curriculum", tags=["Curriculum"])
 

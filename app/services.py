@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config import (
+from app.config import (
     ALTERNATIVE_CODES,
     CATEGORIES,
     CORE_CS_PREFIX,
@@ -28,7 +28,7 @@ from config import (
     TOTAL_CREDITS_TARGET,
     DEFAULT_CURRICULUM_ID,
 )
-from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
+from app.models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 

@@ -17,6 +17,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -25,13 +26,13 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from sqlalchemy import delete
 
-from dashboard import compute_dashboard, compute_study_plan
-from database import AsyncSessionLocal, engine
-from models import Base, Course, Student, TranscriptCourse
-from parser import parse_student_info, parse_transcript
-from routers import advisors, curriculum, students
-from seed import seed_curriculum
-from services import load_curriculum_dict
+from app.dashboard import compute_dashboard, compute_study_plan
+from app.database import AsyncSessionLocal, engine
+from app.models import Base, Course, Student, TranscriptCourse
+from app.parser import parse_student_info, parse_transcript
+from app.routers import advisors, curriculum, students
+from app.seed import seed_curriculum
+from app.services import load_curriculum_dict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -98,7 +99,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception")
     return JSONResponse(status_code=500, content={"error": "เกิดข้อผิดพลาดภายในระบบ"})
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
 # ---------------------------------------------------------------------------
@@ -219,5 +220,5 @@ app.include_router(advisors.router, prefix="/api")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
 

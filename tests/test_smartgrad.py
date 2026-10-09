@@ -1,6 +1,6 @@
 """Comprehensive test suite for SmartGrad – unit tests + integration tests.
 
-รัน: python -m unittest test_smartgrad -v
+รัน: python -m unittest discover -s tests -t . -v
 ใช้สำหรับ regression testing เพื่อยืนยันว่าระบบทำงานเหมือนเดิมหลัง refactor
 
 Test Groups:
@@ -26,13 +26,13 @@ from unittest.mock import patch
 
 # Ensure test suite runs on an isolated local SQLite DB so tests
 # do not alter remote Supabase data or encounter asyncpg test-loop mismatches
-_TEST_DB = Path(__file__).parent / "test_smartgrad.db"
+_TEST_DB = Path(__file__).resolve().parent.parent / "test_smartgrad.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TEST_DB}"
 
 from pydantic import ValidationError
 
-from config import CATEGORIES, TOTAL_CREDITS_TARGET, VALID_GRADES
-from dashboard import (
+from app.config import CATEGORIES, TOTAL_CREDITS_TARGET, VALID_GRADES
+from app.dashboard import (
     _compute_category_breakdown,
     _compute_in_progress,
     _compute_timeline,
@@ -42,8 +42,8 @@ from dashboard import (
     compute_dashboard,
     compute_study_plan,
 )
-from routers.students import CourseOverrideIn
-from services import classify_course, hash_password, verify_password
+from app.routers.students import CourseOverrideIn
+from app.services import classify_course, hash_password, verify_password
 
 
 # ==========================================================================
@@ -189,14 +189,14 @@ class TestCourseClassification(unittest.TestCase):
 
     def test_all_core_math_codes(self):
         """Verify every CORE_MATH_CODES entry classifies as core_math."""
-        from config import CORE_MATH_CODES
+        from app.config import CORE_MATH_CODES
         for code in CORE_MATH_CODES:
             with self.subTest(code=code):
                 self.assertEqual(classify_course(code, self.curriculum_codes), "core_math")
 
     def test_all_alternative_codes(self):
         """Verify every ALTERNATIVE_CODES entry classifies as alternative."""
-        from config import ALTERNATIVE_CODES
+        from app.config import ALTERNATIVE_CODES
         for code in ALTERNATIVE_CODES:
             with self.subTest(code=code):
                 self.assertEqual(classify_course(code, self.curriculum_codes), "alternative")
@@ -289,7 +289,7 @@ class TestDashboard(unittest.TestCase):
             (1, 1, "", [_make_course("05506003")])
         )
         # Patch TOTAL_CREDITS_TARGET to very low
-        with patch("dashboard.TOTAL_CREDITS_TARGET", 1):
+        with patch("app.dashboard.TOTAL_CREDITS_TARGET", 1):
             result = compute_dashboard(
                 [_make_tc("05506003", credit=3, grade="A")],
                 curriculum,
@@ -428,7 +428,7 @@ class TestStudyPlan(unittest.TestCase):
 
     def test_plan_max_credits_per_semester(self):
         """ไม่ควรจัดวิชาเกิน MAX_CREDITS_PER_SEMESTER ต่อเทอม."""
-        from config import MAX_CREDITS_PER_SEMESTER
+        from app.config import MAX_CREDITS_PER_SEMESTER
         result = compute_study_plan([], MOCK_CURRICULUM, "normal")
         for term in result["plan_terms"]:
             if not term.get("is_locked"):
@@ -601,8 +601,8 @@ class TestPrerequisites(unittest.TestCase):
 
     def test_prerequisite_unique_mapping(self):
         """Composite PK ป้องกัน duplicate — ORM mapping ต้องไม่มี record ซ้ำ."""
-        from models import Course, CurriculumCourse, Prerequisite
-        from routers.curriculum import _course_to_out
+        from app.models import Course, CurriculumCourse, Prerequisite
+        from app.routers.curriculum import _course_to_out
 
         course = Course(
             course_code="05506240",
@@ -655,11 +655,11 @@ class TestPDFParser(unittest.TestCase):
 
     def test_parse_transcripts(self):
         """Parse each available transcript PDF and verify against expected data."""
-        from parser import parse_student_info, parse_transcript
+        from app.parser import parse_student_info, parse_transcript
 
         tested = 0
         for filename, expected in self.TRANSCRIPT_TEST_DATA.items():
-            pdf_path = Path(__file__).parent / filename
+            pdf_path = Path(__file__).resolve().parent.parent / filename
             if not pdf_path.exists():
                 continue
 
@@ -710,10 +710,10 @@ class TestAPIIntegration(unittest.TestCase):
         """Start fresh DB for integration tests."""
         try:
             import httpx
-            from main import app
-            from database import engine, AsyncSessionLocal
-            from models import Base
-            from seed import seed_curriculum
+            from app.main import app
+            from app.database import engine, AsyncSessionLocal
+            from app.models import Base
+            from app.seed import seed_curriculum
 
             async def _init_db():
                 async with engine.begin() as conn:
@@ -743,7 +743,7 @@ class TestAPIIntegration(unittest.TestCase):
     async def _get_client(self):
         """Create httpx AsyncClient for testing."""
         import httpx
-        from main import app
+        from app.main import app
         return httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
             base_url="http://test",
@@ -928,7 +928,7 @@ class TestAPIIntegration(unittest.TestCase):
         if not self.has_httpx:
             self.skipTest("httpx not installed")
 
-        pdf_path = Path(__file__).parent / "mytranscript.pdf"
+        pdf_path = Path(__file__).resolve().parent.parent / "mytranscript.pdf"
         if not pdf_path.exists():
             self.skipTest("mytranscript.pdf not found")
 
@@ -1229,8 +1229,8 @@ class TestMultiCurriculum(unittest.TestCase):
 
     def test_curriculum_category_model_and_dynamic_color(self):
         """Test lean CurriculumCategory model: composite PK (curriculum_id, category_name), required_credits."""
-        from models import CurriculumCategory
-        from services import DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_LABELS
+        from app.models import CurriculumCategory
+        from app.services import DEFAULT_CATEGORY_COLORS, DEFAULT_CATEGORY_LABELS
 
         cat = CurriculumCategory(
             curriculum_id="CS2564",
@@ -1255,8 +1255,8 @@ class TestStudentTranscriptSnapshot(unittest.TestCase):
     def test_student_and_transcript_course_models(self):
         """Test Student and TranscriptCourse models with direct student_id linking."""
         from datetime import datetime
-        from models import Student, TranscriptCourse
-        from services import compute_credits, transcript_courses_to_list
+        from app.models import Student, TranscriptCourse
+        from app.services import compute_credits, transcript_courses_to_list
 
         now = datetime.now()
         student = Student(
@@ -1325,7 +1325,7 @@ class TestStudentTranscriptSnapshot(unittest.TestCase):
     def test_student_out_schema(self):
         """Test StudentOut schema includes transcript_filename and last_uploaded_at."""
         from datetime import datetime
-        from routers.students import StudentOut
+        from app.routers.students import StudentOut
 
         now = datetime.now()
         data = {

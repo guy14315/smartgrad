@@ -3,14 +3,14 @@
 import logging
 from typing import Any
 
-from config import (
+from app.config import (
     CATEGORIES,
     CREDIT_RE,
     MAX_CREDITS_PER_SEMESTER,
     NON_PASSING_GRADES,
     TOTAL_CREDITS_TARGET,
 )
-from services import classify_course
+from app.services import classify_course
 
 logger = logging.getLogger(__name__)
 

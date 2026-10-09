@@ -10,7 +10,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent / "smartgrad.db"
+DB_PATH = Path(__file__).resolve().parent.parent / "smartgrad.db"
 
 # Allow overriding DATABASE_URL via environment variable for Cloud SQL / PostgreSQL / Custom paths
 DATABASE_URL = os.environ.get("DATABASE_URL")

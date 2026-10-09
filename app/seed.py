@@ -9,7 +9,7 @@ from pathlib import Path
 from sqlalchemy import inspect, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import (
+from app.config import (
     ALTERNATIVE_CODES,
     CORE_MATH_CODES,
     GE_PREFIX,
@@ -17,7 +17,7 @@ from config import (
     TOTAL_CREDITS_TARGET,
     MAX_CREDITS_PER_SEMESTER,
 )
-from models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
+from app.models import Course, Curriculum, CurriculumCategory, CurriculumCourse, TranscriptCourse
 
 logger = logging.getLogger(__name__)
 

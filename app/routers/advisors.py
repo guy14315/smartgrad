@@ -8,10 +8,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database import get_db
-from config import DEFAULT_CURRICULUM_ID, NON_PASSING_GRADES
-from services import DEFAULT_CATEGORY_LABELS, compute_credits, hash_password, verify_password
-from models import Advisor, AdvisorCredential, CurriculumCourse, Student
+from app.database import get_db
+from app.config import DEFAULT_CURRICULUM_ID, NON_PASSING_GRADES
+from app.services import DEFAULT_CATEGORY_LABELS, compute_credits, hash_password, verify_password
+from app.models import Advisor, AdvisorCredential, CurriculumCourse, Student
 
 logger = logging.getLogger(__name__)
 

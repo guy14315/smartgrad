@@ -8,9 +8,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database import get_db
-from dashboard import compute_dashboard
-from models import (
+from app.database import get_db
+from app.dashboard import compute_dashboard
+from app.models import (
     Advisor,
     Course,
     Curriculum,
@@ -19,9 +19,9 @@ from models import (
     Student,
     TranscriptCourse,
 )
-from parser import parse_transcript
-from config import BUDDHIST_ERA_OFFSET, COURSE_CODE_PATTERN, DEFAULT_CURRICULUM_ID, MAX_UPLOAD_SIZE_BYTES, NON_PASSING_GRADES, VALID_GRADES_PATTERN
-from services import get_student_courses, load_curriculum_dict, transcript_courses_to_list
+from app.parser import parse_transcript
+from app.config import BUDDHIST_ERA_OFFSET, COURSE_CODE_PATTERN, DEFAULT_CURRICULUM_ID, MAX_UPLOAD_SIZE_BYTES, NON_PASSING_GRADES, VALID_GRADES_PATTERN
+from app.services import get_student_courses, load_curriculum_dict, transcript_courses_to_list
 
 import logging
 logger = logging.getLogger(__name__)

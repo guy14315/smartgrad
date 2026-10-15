@@ -22,8 +22,8 @@
   <main>
     <section id="login-view" class="login">
       <h1>เข้าสู่ระบบอาจารย์ที่ปรึกษา</h1><p class="muted">ตรวจสอบความก้าวหน้าของนักศึกษาที่ส่ง Transcript แล้ว</p>
-      <form onsubmit="login(event)"><label for="advisor-id">รหัสอาจารย์</label><input id="advisor-id" required value="ADVISOR001" autocomplete="username"><label for="password">รหัสผ่าน</label><input id="password" required type="password" value="smartgrad-demo" autocomplete="current-password"><button id="login-btn">เข้าสู่ระบบ</button><p id="login-error" class="error hidden"></p></form>
-      <div class="demo">Demo: <b>ADVISOR001</b> / <b>smartgrad-demo</b></div>
+      <form onsubmit="login(event)"><label for="advisor-id">รหัสอาจารย์</label><input id="advisor-id" required placeholder="กรอกรหัสอาจารย์" autocomplete="username"><label for="password">รหัสผ่าน</label><input id="password" required type="password" placeholder="กรอกรหัสผ่าน" autocomplete="current-password"><button id="login-btn">เข้าสู่ระบบ</button><p id="login-error" class="error hidden"></p></form>
+
     </section>
     <section id="dashboard-view" class="hidden">
       <h1 id="welcome">ภาพรวมนักศึกษา</h1><p class="muted">แสดงเฉพาะนักศึกษาที่อัปโหลด Transcript ล่าสุดแล้ว</p>

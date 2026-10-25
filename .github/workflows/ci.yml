@@ -33,3 +33,22 @@ jobs:
 
       - name: Build image
         run: docker build -t smartgrad:ci .
+
+  # Runs on the self-hosted runner installed on the department server, which
+  # pulls jobs from GitHub, so no inbound SSH access to the campus network is needed.
+  deploy:
+    needs: [test, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: self-hosted
+    concurrency: deploy-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start containers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+        run: docker compose -p smartgrad -f docker-compose.prod.yml up -d --build --wait
+
+      - name: Remove dangling images
+        run: docker image prune -f

@@ -1,0 +1,22 @@
+# Production stack, used by the deploy job in .github/workflows/ci.yml.
+# Values come from the environment of the deploy step (GitHub secrets).
+services:
+  web:
+    build: .
+    image: smartgrad:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      # Flip to true once the app is served over HTTPS.
+      SESSION_HTTPS_ONLY: ${SESSION_HTTPS_ONLY:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

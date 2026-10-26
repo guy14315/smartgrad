@@ -1103,6 +1103,29 @@ class TestAPIIntegration(unittest.TestCase):
                     self.assertEqual(c_data["category"], "it_core")
         self._run_async(_test())
 
+    def test_utc_datetime_roundtrip_is_timezone_aware(self):
+        """Student.last_uploaded_at ที่อ่านกลับจาก DB ต้องมี tzinfo=UTC และแปลง aware → UTC ตอนบันทึก"""
+        if not self.has_httpx:
+            self.skipTest("httpx not installed")
+        from datetime import datetime, timedelta, timezone
+        from app.database import AsyncSessionLocal
+        from app.models import Student
+
+        async def _test():
+            bangkok = timezone(timedelta(hours=7))
+            async with AsyncSessionLocal() as session:
+                student = await session.get(Student, "67880004")
+                if not student:
+                    student = Student(student_id="67880004", name="ทดสอบ UTC")
+                    session.add(student)
+                student.last_uploaded_at = datetime(2025, 1, 1, 19, 0, tzinfo=bangkok)
+                await session.commit()
+            async with AsyncSessionLocal() as session:
+                student = await session.get(Student, "67880004")
+                self.assertIsNotNone(student.last_uploaded_at.tzinfo)
+                self.assertEqual(student.last_uploaded_at, datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc))
+        self._run_async(_test())
+
 
 # ==========================================================================
 # 12. Flat Curriculum Tests

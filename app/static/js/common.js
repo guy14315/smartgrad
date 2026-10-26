@@ -37,3 +37,12 @@ async function requestJson(url, options = {}) {
   }
   return data;
 }
+
+// Format an ISO timestamp (UTC from the API) as Thai date/time in Bangkok time.
+// Returns an en dash for empty or unparsable values.
+function formatThaiDateTime(value) {
+  if (!value) return '–';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return '–';
+  return date.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+}

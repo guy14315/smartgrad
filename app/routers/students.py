@@ -1,6 +1,6 @@
 """API router: นักศึกษา – transcript upload, dashboard, planning, simulation"""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, field_validator
@@ -180,7 +180,7 @@ async def upload_transcript(
 
     # update student transcript upload metadata
     student.transcript_filename = file.filename or "transcript.pdf"
-    student.last_uploaded_at = datetime.now()
+    student.last_uploaded_at = datetime.now(timezone.utc)
 
     # delete old courses for this student
     await db.execute(

@@ -54,7 +54,7 @@
         container.innerHTML = '<div class="empty">ยังไม่มีนักศึกษาที่อัปโหลด Transcript</div>';
         return;
       }
-      container.innerHTML = `<table><thead><tr><th>รหัสนักศึกษา</th><th>ชื่อ</th><th>หน่วยกิตผ่าน</th><th>อัปโหลดล่าสุด</th></tr></thead><tbody>${items.map(s => `<tr onclick="selectStudent(${jsArg(s.student_id)})"><td>${escapeHtml(s.student_id)}</td><td>${escapeHtml(s.name)}</td><td><span class="pill">${escapeHtml(s.passed_credits)} นก.</span></td><td>${new Date(s.last_uploaded_at).toLocaleString('th-TH')}</td></tr>`).join('')}</tbody></table>`;
+      container.innerHTML = `<table><thead><tr><th>รหัสนักศึกษา</th><th>ชื่อ</th><th>หน่วยกิตผ่าน</th><th>อัปโหลดล่าสุด</th></tr></thead><tbody>${items.map(s => `<tr onclick="selectStudent(${jsArg(s.student_id)})"><td>${escapeHtml(s.student_id)}</td><td>${escapeHtml(s.name)}</td><td><span class="pill">${escapeHtml(s.passed_credits)} นก.</span></td><td>${escapeHtml(formatThaiDateTime(s.last_uploaded_at))}</td></tr>`).join('')}</tbody></table>`;
     }
 
     function filterStudents() {
@@ -66,7 +66,7 @@
       selected = students.find(s => s.student_id === id);
       const data = await requestJson(`${api}/${advisor.advisor_id}/students/${id}`);
       document.getElementById('student-detail').classList.remove('hidden');
-      document.getElementById('upload-date').textContent = 'อัปโหลดล่าสุด: ' + new Date(data.transcript_uploaded_at).toLocaleString('th-TH');
+      document.getElementById('upload-date').textContent = 'อัปโหลดล่าสุด: ' + formatThaiDateTime(data.transcript_uploaded_at);
 
       const fCourses = data.f_courses || [];
       const passedCourses = data.passed_courses || [];

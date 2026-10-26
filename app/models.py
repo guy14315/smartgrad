@@ -1,11 +1,28 @@
 """SQLAlchemy ORM models for SmartGrad."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from app.database import Base
+
+
+class UTCDateTime(TypeDecorator):
+    """เก็บเวลาเป็น UTC ในคอลัมน์ DateTime แบบไม่มี timezone และคืนค่าเป็น timezone-aware (UTC) เสมอ"""
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +161,7 @@ class Student(Base):
     advisor_id: Mapped[str | None] = mapped_column(ForeignKey("advisors.advisor_id"), nullable=True)
     curriculum_id: Mapped[str | None] = mapped_column(ForeignKey("curriculums.curriculum_id"), nullable=True)
     transcript_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    last_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_uploaded_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     advisor: Mapped["Advisor | None"] = relationship(back_populates="students")
     curriculum: Mapped["Curriculum | None"] = relationship(back_populates="students")

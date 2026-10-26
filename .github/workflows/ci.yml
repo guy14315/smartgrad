@@ -50,5 +50,5 @@ jobs:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
         run: docker compose -p smartgrad -f docker-compose.prod.yml up -d --build --wait
 
-      - name: Remove dangling images
-        run: docker image prune -f
+      - name: Clean up Docker build cache and old image
+        run: docker builder prune -af && docker image prune -f

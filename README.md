@@ -105,7 +105,7 @@ uvicorn app.main:app --reload
 python -m unittest discover -s tests -t . -v
 ```
 
-มีเทสต์ทั้งหมด 78 รายการ โดยเทสต์จะใช้ไฟล์ SQLite ของตัวเอง (`test_smartgrad.db` ที่โฟลเดอร์หลัก) และบังคับตั้ง `DATABASE_URL` เอง จึงไม่แตะต้องฐานข้อมูลจริงแม้ใน `.env` จะชี้ไปที่ Supabase
+มีเทสต์ทั้งหมด 79 รายการ โดยเทสต์จะใช้ไฟล์ SQLite ของตัวเอง (`test_smartgrad.db` ที่โฟลเดอร์หลัก) และบังคับตั้ง `DATABASE_URL` เอง จึงไม่แตะต้องฐานข้อมูลจริงแม้ใน `.env` จะชี้ไปที่ Supabase
 
 ## โครงสร้างโปรเจกต์ (Project Structure)
 
@@ -134,7 +134,7 @@ smartgrad/
 │       ├── css/              # สไตล์ของแต่ละหน้า (index.css, search.css, advisor.css)
 │       └── js/               # สคริปต์ของแต่ละหน้า (index.js, search.js, advisor.js)
 ├── tests/
-│   └── test_smartgrad.py     # Unit test และ Integration test ทั้งหมด (78 รายการ)
+│   └── test_smartgrad.py     # Unit test และ Integration test ทั้งหมด (79 รายการ)
 ├── requirements.txt          # แพ็กเกจ Python ที่ต้องติดตั้ง (ระบุเวอร์ชันตายตัว)
 ├── Dockerfile                # Image แบบ python:3.12-slim รันด้วย non-root user
 ├── docker-compose.yml        # รันผ่าน Docker Compose (อ่านค่าจาก .env, mount ./app, เปิด --reload)

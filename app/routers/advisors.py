@@ -152,8 +152,8 @@ async def get_student_report(
     รายงานสรุปสำหรับอาจารย์:
     - หน่วยกิตสะสม
     - วิชาที่ผ่าน แยกตามปี/เทอม
-    - วิชาที่สอบไม่ผ่านหรือถอน
-    ครอบคลุม requirement: ค้นหาด้วยรหัสนักศึกษา, วิชาที่สอบไม่ผ่าน/ถอน
+    - วิชาที่สอบไม่ผ่าน (F)
+    ครอบคลุม requirement: ค้นหาด้วยรหัสนักศึกษา, วิชาที่สอบไม่ผ่าน
     """
     _require_advisor_login(request, advisor_id)
     await _get_advisor_or_404(advisor_id, db)
@@ -177,7 +177,7 @@ async def get_student_report(
     )
     cc_map = {cc.course_code: cc for cc in cc_result.scalars().all()}
 
-    # Identify passed courses first to check if F or W courses were retaken and passed later
+    # Identify passed courses first to check if F courses were retaken and passed later
     passed_codes = {
         tc.course_code
         for tc in student.student_courses
@@ -186,8 +186,6 @@ async def get_student_report(
 
     passed_courses = []
     f_courses = []
-    withdrawn_courses = []
-    other_non_passing = []
 
     for tc in student.student_courses:
         grade_upper = (tc.grade or "").upper().strip()
@@ -224,16 +222,8 @@ async def get_student_report(
             passed_courses.append(course_item)
         elif grade_upper == "F":
             f_courses.append(course_item)
-        elif grade_upper in ("W", "WU"):
-            withdrawn_courses.append(course_item)
-        elif grade_upper in NON_PASSING_GRADES:
-            other_non_passing.append(course_item)
 
     passed_credits = sum(c["credit"] for c in passed_courses)
-    withdrawn_core_courses = [c for c in withdrawn_courses if c["is_core"]]
-
-    # Combined list for backward compatibility
-    failed_or_withdrawn_courses = f_courses + withdrawn_courses + other_non_passing
 
     return {
         "student_id": student_id,
@@ -243,13 +233,7 @@ async def get_student_report(
         "passed_courses_count": len(passed_courses),
         "f_count": len(f_courses),
         "f_courses": f_courses,
-        "withdrawn_count": len(withdrawn_courses),
-        "withdrawn_core_count": len(withdrawn_core_courses),
-        "withdrawn_courses": withdrawn_courses,
-        "withdrawn_core_courses": withdrawn_core_courses,
-        "failed_or_withdrawn_count": len(failed_or_withdrawn_courses),
         "passed_courses": passed_courses,
-        "failed_or_withdrawn_courses": failed_or_withdrawn_courses,
         "transcript_uploaded_at": student.last_uploaded_at,
     }
 

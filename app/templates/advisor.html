@@ -18,8 +18,8 @@
       <div class="demo">Demo: <b>ADVISOR001</b> / <b>smartgrad-demo</b></div>
     </section>
     <section id="dashboard-view" class="hidden">
-      <h1 id="welcome">ภาพรวมนักศึกษา</h1><p class="muted">แสดงเฉพาะนักศึกษาที่อัปโหลด Transcript ล่าสุดแล้ว</p>
-      <div class="overview"><div class="card"><div class="muted">นักศึกษาที่ส่ง Transcript</div><div id="student-count" class="value">–</div></div><div class="card"><div class="muted">พร้อมจบการศึกษา</div><div id="graduate-count" class="value">–</div></div></div>
+      <h1 id="welcome">ภาพรวมนักศึกษา</h1><p class="muted">ตารางด้านล่างแสดงเฉพาะนักศึกษาที่อัปโหลด Transcript ล่าสุดแล้ว</p>
+      <div class="overview"><div class="card"><div class="muted">นักศึกษาในความดูแลทั้งหมด</div><div id="total-students" class="value">–</div></div><div class="card"><div class="muted">ส่ง Transcript แล้ว</div><div id="student-count" class="value">–</div></div><div class="card"><div class="muted">ยังไม่ส่ง Transcript</div><div id="no-transcript-count" class="value">–</div></div><div class="card"><div class="muted">หน่วยกิตเฉลี่ย</div><div id="avg-credits" class="value">–</div></div><div class="card"><div class="muted">พร้อมจบการศึกษา</div><div id="graduate-count" class="value">–</div></div></div>
       <div class="layout"><section class="panel"><div class="panel-head"><h2>นักศึกษาในความดูแล</h2><input id="search" oninput="filterStudents()" placeholder="ค้นหารหัสนักศึกษา" style="max-width:190px"></div><div id="student-table"></div></section><section class="panel"><div class="panel-head"><h2>ส่งคำแนะนำ</h2></div><div id="note-area" class="empty">เลือกรายชื่อนักศึกษาจากตารางก่อน</div></section></div>
       <section id="student-detail" class="panel detail hidden"><div class="panel-head"><h2>รายละเอียดผลการเรียน</h2><span id="upload-date" class="muted"></span></div><div id="report" class="courses" style="padding:0 18px 16px"></div></section>
     </section>

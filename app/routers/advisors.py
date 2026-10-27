@@ -10,12 +10,24 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.config import DEFAULT_CURRICULUM_ID, NON_PASSING_GRADES
-from app.services import DEFAULT_CATEGORY_LABELS, compute_credits, hash_password, verify_password
-from app.models import Advisor, AdvisorCredential, CurriculumCourse, Student
+from app.dashboard import compute_dashboard
+from app.services import (
+    DEFAULT_CATEGORY_LABELS,
+    compute_credits,
+    get_student_courses,
+    hash_password,
+    load_curriculum_dict,
+    transcript_courses_to_list,
+    verify_password,
+)
+from app.models import Advisor, AdvisorCredential, Curriculum, CurriculumCourse, Student
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/advisors", tags=["Advisors"])
+
+# ใช้เมื่อหลักสูตรไม่ได้กำหนด total_credits_target
+FALLBACK_TOTAL_CREDITS = 135
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +65,12 @@ async def _get_advisor_or_404(advisor_id: str, db: AsyncSession) -> Advisor:
     if not advisor:
         raise HTTPException(status_code=404, detail=f"ไม่พบอาจารย์ {advisor_id}")
     return advisor
+
+
+async def _load_credit_targets(db: AsyncSession) -> dict[str, int]:
+    """curriculum_id -> total_credits_target (จากตาราง Curriculum)"""
+    result = await db.execute(select(Curriculum.curriculum_id, Curriculum.total_credits_target))
+    return {cid: target for cid, target in result.all() if target}
 
 
 def _require_advisor_login(request: Request, advisor_id: str) -> None:
@@ -125,6 +143,7 @@ async def list_students(advisor_id: str, request: Request, db: AsyncSession = De
         .where(Student.advisor_id == advisor_id)
     )
     students = result.scalars().unique().all()
+    targets = await _load_credit_targets(db)
 
     response = []
     for s in students:
@@ -137,6 +156,7 @@ async def list_students(advisor_id: str, request: Request, db: AsyncSession = De
                 "last_uploaded_at": s.last_uploaded_at,
                 "passed_credits": passed,
                 "courses_in_transcript": len(s.student_courses),
+                "max_credits": targets.get(s.curriculum_id or DEFAULT_CURRICULUM_ID, FALLBACK_TOTAL_CREDITS),
             })
     return {"advisor_id": advisor_id, "students": response, "total": len(response)}
 
@@ -224,6 +244,63 @@ async def get_student_report(
             f_courses.append(course_item)
 
     passed_credits = sum(c["credit"] for c in passed_courses)
+    curriculum_row = await db.get(Curriculum, curr_id)
+    max_credits = (curriculum_row.total_credits_target if curriculum_row else None) or FALLBACK_TOTAL_CREDITS
+
+    # ข้อมูล progress bar (ใช้ compute_dashboard ชุดเดียวกับหน้านักศึกษา)
+    progress = None
+    try:
+        tc_list = await get_student_courses(student_id, db)
+        curriculum = await load_curriculum_dict(db, curriculum_id=student.curriculum_id)
+        dash = compute_dashboard(transcript_courses_to_list(tc_list), curriculum)
+        in_progress_courses: list[dict] = []
+        seen_ip: set[str] = set()
+        categories_out = []
+        for cat in dash["categories"]:
+            ip_courses = [crs for crs in (cat.get("courses") or []) if crs.get("is_current")]
+            ip_credits = sum(crs.get("credit") or 0 for crs in ip_courses)
+            for crs in ip_courses:
+                if crs["code"] in seen_ip:
+                    continue
+                seen_ip.add(crs["code"])
+                in_progress_courses.append({
+                    "code": crs["code"],
+                    "name": crs.get("name") or crs.get("name_en") or "",
+                    "credit": crs.get("credit") or 0,
+                    "category": cat["key"],
+                    "category_label": cat["label"],
+                })
+            categories_out.append({
+                "key": cat["key"],
+                "label": cat["label"],
+                "earned_credits": cat["earned_credits"],
+                "passed_credits": max(cat["earned_credits"] - ip_credits, 0),
+                "in_progress_credits": ip_credits,
+                "target_credits": cat["target_credits"],
+                "percent": cat["percent"],
+            })
+        # วิชาที่กำลังเรียนแต่ไม่อยู่ในหมวดใดเลย
+        for crs in dash.get("in_progress") or []:
+            if crs["code"] not in seen_ip:
+                seen_ip.add(crs["code"])
+                in_progress_courses.append({
+                    "code": crs["code"],
+                    "name": crs.get("name") or crs.get("name_en") or "",
+                    "credit": crs.get("credit") or 0,
+                    "category": None,
+                    "category_label": "",
+                })
+
+        progress = {
+            "total_credits": dash["total_credits"],
+            "passed_credits": dash["passed_credits"],
+            "in_progress_credits": dash.get("in_progress_credits", 0),
+            "progress_percent": dash["progress_percent"],
+            "in_progress": in_progress_courses,
+            "categories": categories_out,
+        }
+    except Exception:
+        logger.exception("compute_dashboard failed for student %s", student_id)
 
     return {
         "student_id": student_id,
@@ -235,6 +312,8 @@ async def get_student_report(
         "f_courses": f_courses,
         "passed_courses": passed_courses,
         "transcript_uploaded_at": student.last_uploaded_at,
+        "max_credits": max_credits,
+        "progress": progress,
     }
 
 
@@ -309,4 +388,3 @@ async def advisor_summary(advisor_id: str, request: Request, db: AsyncSession = 
         "students_without_transcript": without_transcript,
         "average_passed_credits": round(total_passed_credits / with_transcript, 1) if with_transcript else 0,
     }
-

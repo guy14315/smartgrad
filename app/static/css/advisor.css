@@ -1,10 +1,27 @@
-    :root {
+:root {
         --orange: #E65525;
         --navy: #0F172A;
         --slate: #64748B;
         --line: #E2E8F0;
         --bg: #F8FAFC;
         --red: #b91c1c;
+        --green: #16a34a;
+
+        /* tag / badge colors */
+        --indigo-bg: #e0e7ff;
+        --indigo-fg: #3730a3;
+        --red-bg: #fef2f2;
+        --red-border: #fca5a5;
+        --red-strong-bg: #fee2e2;
+        --red-strong-fg: #991b1b;
+        --gray-bg: #f1f5f9;
+        --gray-border: #cbd5e1;
+        --gray-fg: #334155;
+
+        /* disabled look (in-progress) */
+        --disabled-bg: #e2e8f0;
+        --disabled-bar: #cbd5e1;
+        --disabled-fg: #94a3b8;
     }
 
     * {
@@ -295,4 +312,282 @@
         td {
             padding: 11px;
         }
+    }
+    #sort-category-btn.active {
+         background: var(--navy); 
+         color: #fff; 
+    }
+
+    /* ======================================================
+       Student detail report
+       ====================================================== */
+
+    /* summary box */
+    .summary-box {
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 16px;
+    }
+
+    .summary-name {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .summary-bar {
+        margin-top: 14px;
+    }
+
+    .pill-lg {
+        font-size: 13px;
+        padding: 4px 10px;
+    }
+
+    .f-pill {
+        background: var(--bg);
+        color: var(--slate);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 10px;
+        font-weight: 600;
+    }
+
+    .f-pill.has-f {
+        background: var(--red-bg);
+        color: var(--red);
+        border-color: var(--red-border);
+    }
+
+    /* section headings */
+    .f-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--red);
+        margin: 20px 0 10px;
+    }
+
+    .list-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 10px;
+    }
+
+    .list-title {
+        color: var(--navy);
+        margin: 0;
+    }
+
+    .btn-sort {
+        width: auto;
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    /* course rows */
+    .course.f-course {
+        align-items: flex-start;
+        padding: 10px 0;
+    }
+
+    .course.is-ip {
+        opacity: .75;
+    }
+
+    .course.is-ip .course-text {
+        color: var(--slate);
+    }
+
+    .course-grade {
+        color: var(--navy);
+    }
+
+    .course-grade.f {
+        color: var(--red);
+        margin-left: 6px;
+    }
+
+    .course-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+        font-size: 12px;
+    }
+
+    .course-term {
+        font-size: 12px;
+        color: var(--slate);
+        white-space: nowrap;
+    }
+
+    /* tags */
+    .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .tag-cat {
+        background: var(--indigo-bg);
+        color: var(--indigo-fg);
+    }
+
+    .tag-core {
+        background: var(--red-strong-bg);
+        color: var(--red-strong-fg);
+        font-weight: 600;
+    }
+
+    .tag-retaken {
+        background: var(--gray-bg);
+        color: var(--gray-fg);
+        border: 1px solid var(--gray-border);
+        font-weight: 600;
+    }
+
+    .tag-unpassed {
+        background: var(--red-bg);
+        color: var(--red);
+        font-weight: 600;
+    }
+
+    /* in-progress = disabled look */
+    .tag-ip {
+        background: var(--disabled-bg);
+        color: var(--disabled-fg);
+        padding: 2px 10px;
+    }
+
+    .is-ip .tag-cat {
+        background: var(--disabled-bg);
+        color: var(--slate);
+    }
+
+    .course-cat {
+        margin-top: 4px;
+    }
+
+    /* grouped-by-category view */
+    .group-head {
+        margin: 18px 0 6px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .group-title {
+        font-weight: 600;
+        color: var(--navy);
+    }
+
+    .group-sub {
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .ip-title {
+        margin: 18px 0 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--line);
+        font-weight: 600;
+        color: var(--slate);
+    }
+
+    .ip-title small {
+        font-weight: 400;
+        font-size: inherit;
+    }
+
+    .empty-note {
+        font-size: 13px;
+    }
+
+    /* note / mail form */
+    .note-box {
+        padding: 18px;
+    }
+
+    .btn-note {
+        margin-top: 16px;
+    }
+
+    /* ======================================================
+       Progress bar (passed = colored, in-progress = disabled gray)
+       ====================================================== */
+    .adv-bar {
+        --cat: var(--orange);
+    }
+
+    .adv-bar[data-cat="ge"]          { --cat: #64748B; }
+    .adv-bar[data-cat="core_math"]   { --cat: #0284C7; }
+    .adv-bar[data-cat="core_cs"]     { --cat: #E65525; }
+    .adv-bar[data-cat="elective"]    { --cat: #D97706; }
+    .adv-bar[data-cat="free"]        { --cat: #DB2777; }
+    .adv-bar[data-cat="alternative"] { --cat: #7C3AED; }
+
+    .adv-bar-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+
+    .adv-bar-top strong.done {
+        color: var(--green);
+    }
+
+    .adv-track {
+        display: flex;
+        height: 10px;
+        background: var(--line);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+
+    .adv-track.lg {
+        height: 16px;
+    }
+
+    .adv-fill {
+        height: 100%;
+        width: 0;
+        background: var(--cat);
+        transition: width .8s ease;
+    }
+
+    .adv-fill.ip {
+        background: var(--disabled-bar);
+    }
+
+    .adv-bar-sub {
+        font-size: 12px;
+        color: var(--slate);
+        margin-top: 4px;
+    }
+
+    .adv-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--disabled-bar);
+        margin-right: 5px;
     }

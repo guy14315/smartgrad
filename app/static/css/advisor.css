@@ -155,7 +155,7 @@
 
     .overview {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 16px;
         margin: 24px 0;
     }
@@ -164,13 +164,14 @@
         background: #fff;
         border: 1px solid var(--line);
         border-radius: 8px;
-        padding: 24px;
+        padding: 18px 20px;
         box-shadow: 0 1px 2px #0000000d;
     }
 
     .value {
         font: 600 28px Prompt, sans-serif;
         margin-top: 5px;
+        overflow-wrap: anywhere;
     }
 
     .layout {
@@ -269,9 +270,15 @@
         color: var(--slate);
     }
 
+    @media(max-width:900px) {
+
+        .overview {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+    }
+
     @media(max-width:760px) {
 
-        .overview,
         .layout {
             grid-template-columns: 1fr;
         }

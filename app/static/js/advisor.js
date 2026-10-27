@@ -37,13 +37,17 @@
     }
 
     async function loadDashboard() {
-      const [list, ready] = await Promise.all([
+      const [list, ready, summary] = await Promise.all([
         requestJson(`${api}/${advisor.advisor_id}/students`),
         requestJson(`${api}/${advisor.advisor_id}/ready-to-graduate`),
+        requestJson(`${api}/${advisor.advisor_id}/summary`),
       ]);
       students = list.students;
       document.getElementById('welcome').textContent = `ภาพรวมนักศึกษา: ${advisor.name}`;
-      document.getElementById('student-count').textContent = list.total;
+      document.getElementById('total-students').textContent = summary.total_students + ' คน';
+      document.getElementById('student-count').textContent = summary.students_with_transcript + ' คน';
+      document.getElementById('no-transcript-count').textContent = summary.students_without_transcript + ' คน';
+      document.getElementById('avg-credits').textContent = summary.average_passed_credits + ' นก.';
       document.getElementById('graduate-count').textContent = ready.total + ' คน';
       renderStudents(students);
     }
@@ -62,6 +66,30 @@
       renderStudents(students.filter(s => s.student_id.includes(term) || s.name.toLowerCase().includes(term)));
     }
 
+    const COURSE_THEMES = {
+      F: { grade: '#b91c1c', coreBg: '#fee2e2', coreFg: '#991b1b', statusBg: '#fef2f2', statusFg: '#b91c1c', pending: 'ยังไม่ผ่านใน Transcript' },
+      W: { grade: '#b45309', coreBg: '#fef3c7', coreFg: '#92400e', statusBg: '#fffbeb', statusFg: '#b45309', pending: 'ยังไม่ได้ลงเรียนใหม่' },
+    };
+
+    function renderNonPassingCourse(c, kind) {
+      const t = COURSE_THEMES[kind];
+      return `
+          <div class="course" style="align-items:flex-start; padding:10px 0;">
+            <div>
+              <div>
+                <b>${escapeHtml(c.code)}</b> · ${escapeHtml(c.name)} <span class="muted">(${escapeHtml(c.credit)} นก.)</span>
+                <b style="color:${t.grade}; margin-left:6px;">[${escapeHtml(c.grade)}]</b>
+              </div>
+              <div style="margin-top:4px; font-size:12px; display:flex; flex-wrap:wrap; gap:6px;">
+                ${c.is_core ? `<span style="background:${t.coreBg}; color:${t.coreFg}; padding:2px 8px; border-radius:4px; font-weight:600;">[วิชาหลักตามแผน] ${escapeHtml(c.category_label || '')} ${c.plan_text ? `(${escapeHtml(c.plan_text)})` : ''}</span>` : (c.category_label ? `<span style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:4px;">${escapeHtml(c.category_label)} ${c.plan_text ? `(${escapeHtml(c.plan_text)})` : ''}</span>` : '')}
+                ${c.is_retaken_passed ? `<span style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px; font-weight:600;">ลงเรียนใหม่และผ่านแล้ว</span>` : `<span style="background:${t.statusBg}; color:${t.statusFg}; padding:2px 8px; border-radius:4px; font-weight:600;">${t.pending}</span>`}
+              </div>
+            </div>
+            <span style="font-size:12px; color:#64748b; white-space:nowrap;">${escapeHtml(c.academic_year || '')} ${c.semester ? `เทอม ${escapeHtml(c.semester)}` : ''}</span>
+          </div>
+        `;
+    }
+
     async function selectStudent(id) {
       selected = students.find(s => s.student_id === id);
       const data = await requestJson(`${api}/${advisor.advisor_id}/students/${id}`);
@@ -69,27 +97,21 @@
       document.getElementById('upload-date').textContent = 'อัปโหลดล่าสุด: ' + formatThaiDateTime(data.transcript_uploaded_at);
 
       const fCourses = data.f_courses || [];
+      const wCourses = data.withdrawn_courses || [];
       const passedCourses = data.passed_courses || [];
 
       const fHtml = fCourses.length ? `
         <h3 style="color:#b91c1c; margin:20px 0 10px; display:flex; align-items:center; gap:8px;">
           <span>วิชาที่ติด F (${escapeHtml(data.f_count)} วิชา)</span>
         </h3>
-        ${fCourses.map(c => `
-          <div class="course" style="align-items:flex-start; padding:10px 0;">
-            <div>
-              <div>
-                <b>${escapeHtml(c.code)}</b> · ${escapeHtml(c.name)} <span class="muted">(${escapeHtml(c.credit)} นก.)</span>
-                <b style="color:#b91c1c; margin-left:6px;">[${escapeHtml(c.grade)}]</b>
-              </div>
-              <div style="margin-top:4px; font-size:12px; display:flex; flex-wrap:wrap; gap:6px;">
-                ${c.is_core ? `<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:4px; font-weight:600;">[วิชาหลักตามแผน] ${escapeHtml(c.category_label || '')} ${c.plan_text ? `(${escapeHtml(c.plan_text)})` : ''}</span>` : (c.category_label ? `<span style="background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:4px;">${escapeHtml(c.category_label)} ${c.plan_text ? `(${escapeHtml(c.plan_text)})` : ''}</span>` : '')}
-                ${c.is_retaken_passed ? `<span style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px; font-weight:600;">ลงเรียนใหม่และผ่านแล้ว</span>` : `<span style="background:#fef2f2; color:#b91c1c; padding:2px 8px; border-radius:4px; font-weight:600;">ยังไม่ผ่านใน Transcript</span>`}
-              </div>
-            </div>
-            <span style="font-size:12px; color:#64748b; white-space:nowrap;">${escapeHtml(c.academic_year || '')} ${c.semester ? `เทอม ${escapeHtml(c.semester)}` : ''}</span>
-          </div>
-        `).join('')}
+        ${fCourses.map(c => renderNonPassingCourse(c, 'F')).join('')}
+      ` : '';
+
+      const wHtml = wCourses.length ? `
+        <h3 style="color:#b45309; margin:20px 0 10px; display:flex; align-items:center; gap:8px;">
+          <span>วิชาที่ถอน (W) (${escapeHtml(data.withdrawn_count)} วิชา)</span>
+        </h3>
+        ${wCourses.map(c => renderNonPassingCourse(c, 'W')).join('')}
       ` : '';
 
       const passedHtml = `
@@ -110,9 +132,13 @@
             <span style="background:${data.f_count ? '#fef2f2' : '#f8fafc'}; color:${data.f_count ? '#b91c1c' : '#64748b'}; border:1px solid ${data.f_count ? '#fca5a5' : '#e2e8f0'}; border-radius:999px; padding:3px 10px; font-weight:600;">
               ติด F: ${escapeHtml(data.f_count)} วิชา
             </span>
+            <span style="background:${data.withdrawn_count ? '#fffbeb' : '#f8fafc'}; color:${data.withdrawn_count ? '#b45309' : '#64748b'}; border:1px solid ${data.withdrawn_count ? '#fcd34d' : '#e2e8f0'}; border-radius:999px; padding:3px 10px; font-weight:600;">
+              ถอน (W): ${escapeHtml(data.withdrawn_count)} วิชา
+            </span>
           </div>
         </div>
         ${fHtml}
+        ${wHtml}
         ${passedHtml}
       `;
 

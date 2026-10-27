@@ -100,8 +100,21 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception")
     return JSONResponse(status_code=500, content={"error": "เกิดข้อผิดพลาดภายในระบบ"})
 
+STATIC_DIR = Path(__file__).parent / "static"
+
+
+def static_url(path: str) -> str:
+    """URL ของไฟล์ static พร้อม ?v=<เวลาแก้ไขไฟล์> ให้ browser/proxy โหลดไฟล์ใหม่ทุกครั้งที่ไฟล์เปลี่ยน"""
+    try:
+        version = int((STATIC_DIR / path).stat().st_mtime)
+    except OSError:
+        return f"/static/{path}"
+    return f"/static/{path}?v={version}"
+
+
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
-app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+templates.env.globals["static_url"] = static_url
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------

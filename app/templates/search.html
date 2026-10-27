@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   
-  <link rel="stylesheet" href="/static/css/search.css" />
+  <link rel="stylesheet" href="{{ static_url('css/search.css') }}" />
 </head>
 <body>
 
@@ -97,7 +97,7 @@
     </div>
   </div>
 
-  <script src="/static/js/common.js"></script>
-  <script src="/static/js/search.js"></script>
+  <script src="{{ static_url('js/common.js') }}"></script>
+  <script src="{{ static_url('js/search.js') }}"></script>
 </body>
 </html>

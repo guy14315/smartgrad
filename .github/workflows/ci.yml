@@ -34,8 +34,6 @@ jobs:
       - name: Build image
         run: docker build -t smartgrad:ci .
 
-  # Runs on the self-hosted runner installed on the department server, which
-  # pulls jobs from GitHub, so no inbound SSH access to the campus network is needed.
   deploy:
     needs: [test, docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

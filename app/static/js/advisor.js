@@ -262,10 +262,10 @@ async function selectStudent(id) {
         ${fHtml}
         ${passedHtml}
       `;
-    
+
     renderPassedCourses();
     animateBars(document.getElementById('report'));
-    
+
     document.getElementById('note-area').className = '';
     document.getElementById('note-area').innerHTML = `<div class="note-box"><p><b>${escapeHtml(selected.student_id)} ${escapeHtml(selected.name)}</b></p><p class="muted">ผู้รับ: ${escapeHtml(selected.student_id)}@kmitl.ac.th</p><form onsubmit="sendNote(event)"><label>หัวข้อ</label><input id="note-subject" required value="คำแนะนำการวางแผนการเรียน"><label>คำแนะนำ</label><textarea id="note-message" required placeholder="พิมพ์คำแนะนำสำหรับนักศึกษา"></textarea><button id="send-btn" class="btn-note">เปิด Gmail เพื่อส่งคำแนะนำ</button><p id="note-result" class="hidden"></p></form></div>`;
     window.scrollTo({ top: document.getElementById('student-detail').offsetTop - 20, behavior: 'smooth' });
